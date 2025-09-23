@@ -202,7 +202,6 @@ export default function NovaChecklistScreen(): JSX.Element {
               multiline
               numberOfLines={8}
               style={styles.textArea}
-              helperText="Cada linha será convertida em um item."
             />
           )}
         </View>

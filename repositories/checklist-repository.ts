@@ -1,6 +1,7 @@
 import type { Database } from '@/lib/database';
 import type {
   Checklist,
+  ChecklistMode,
   ChecklistStatus,
   ChecklistSummary,
   ChecklistWithItems,
@@ -11,6 +12,7 @@ const SUMMARY_LIST_QUERY = `
     c.id AS id,
     c.title AS title,
     c.created_at AS created_at,
+    c.mode AS mode,
     COUNT(i.id) AS total_items,
     SUM(CASE WHEN i.done = 1 THEN 1 ELSE 0 END) AS completed_items,
     SUM(COALESCE(i.price, 0)) AS total_amount,
@@ -27,6 +29,7 @@ const SUMMARY_BY_ID_QUERY = `
     c.id AS id,
     c.title AS title,
     c.created_at AS created_at,
+    c.mode AS mode,
     COUNT(i.id) AS total_items,
     SUM(CASE WHEN i.done = 1 THEN 1 ELSE 0 END) AS completed_items,
     SUM(COALESCE(i.price, 0)) AS total_amount,
@@ -41,6 +44,7 @@ type SummaryRow = {
   id: number;
   title: string;
   created_at: number;
+  mode: ChecklistMode;
   total_items: number | null;
   completed_items: number | null;
   total_amount: number | null;
@@ -55,11 +59,15 @@ type ItemRow = {
   done: number;
 };
 
-export async function createChecklist(db: Database, title: string): Promise<number> {
+export async function createChecklist(
+  db: Database,
+  title: string,
+  mode: ChecklistMode,
+): Promise<number> {
   const createdAt = Date.now();
   const result = await db.runAsync(
-    'INSERT INTO checklists (title, created_at) VALUES (?, ?);',
-    [title.trim(), createdAt],
+    'INSERT INTO checklists (title, created_at, mode) VALUES (?, ?, ?);',
+    [title.trim(), createdAt, mode],
   );
 
   return Number(result.lastInsertRowId ?? 0);
@@ -75,6 +83,14 @@ export async function updateChecklistTitle(
 
 export async function deleteChecklist(db: Database, checklistId: number): Promise<void> {
   await db.runAsync('DELETE FROM checklists WHERE id = ?;', [checklistId]);
+}
+
+export async function updateChecklistMode(
+  db: Database,
+  checklistId: number,
+  mode: ChecklistMode,
+): Promise<void> {
+  await db.runAsync('UPDATE checklists SET mode = ? WHERE id = ?;', [mode, checklistId]);
 }
 
 export async function listChecklists(
@@ -124,7 +140,8 @@ export async function getChecklist(db: Database, checklistId: number): Promise<C
     id: number;
     title: string;
     created_at: number;
-  }>('SELECT id, title, created_at FROM checklists WHERE id = ?;', [checklistId]);
+    mode: ChecklistMode;
+  }>('SELECT id, title, created_at, mode FROM checklists WHERE id = ?;', [checklistId]);
 
   if (!row) {
     return null;
@@ -134,6 +151,7 @@ export async function getChecklist(db: Database, checklistId: number): Promise<C
     id: row.id,
     title: row.title,
     createdAt: row.created_at,
+    mode: row.mode,
   };
 }
 
@@ -142,6 +160,7 @@ function mapSummary(row: SummaryRow): ChecklistSummary {
     id: row.id,
     title: row.title,
     createdAt: row.created_at,
+    mode: row.mode,
     totalItems: row.total_items ?? 0,
     completedItems: row.completed_items ?? 0,
     totalAmount: roundCurrency(row.total_amount ?? 0),

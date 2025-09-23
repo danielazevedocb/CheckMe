@@ -6,7 +6,8 @@ const MIGRATIONS = [
   `CREATE TABLE IF NOT EXISTS checklists (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
-    created_at INTEGER NOT NULL
+    created_at INTEGER NOT NULL,
+    mode TEXT NOT NULL DEFAULT 'list'
   );`,
   `CREATE TABLE IF NOT EXISTS checklist_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,9 +40,20 @@ async function initialize(): Promise<Database> {
     for (const statement of MIGRATIONS) {
       await db.execAsync(statement);
     }
+
+    await ensureColumn(db, 'checklists', 'mode', "TEXT NOT NULL DEFAULT 'list'");
   });
 
   return db;
+}
+
+async function ensureColumn(db: Database, table: string, column: string, definition: string) {
+  const rows = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table});`);
+  const hasColumn = rows.some((row) => row.name === column);
+
+  if (!hasColumn) {
+    await db.execAsync(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition};`);
+  }
 }
 
 export async function resetDatabase(): Promise<void> {

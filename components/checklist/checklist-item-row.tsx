@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors } from '@/constants/theme';
 import { useThemeMode } from '@/contexts/theme-context';
-import type { ChecklistItem } from '@/types/checklist';
+import type { ChecklistItem, ChecklistMode } from '@/types/checklist';
 import { formatCurrency } from '@/utils/format';
 
 interface ChecklistItemRowProps {
@@ -11,13 +11,22 @@ interface ChecklistItemRowProps {
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  mode?: ChecklistMode;
 }
 
-export function ChecklistItemRow({ item, onToggle, onEdit, onDelete }: ChecklistItemRowProps): JSX.Element {
+export function ChecklistItemRow({
+  item,
+  onToggle,
+  onEdit,
+  onDelete,
+  mode = 'list',
+}: ChecklistItemRowProps): JSX.Element {
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
   const iconName = item.done ? 'checkmark-circle' : 'ellipse-outline';
   const iconColor = item.done ? palette.success : palette.textMuted;
+  const showActions = mode === 'list';
+  const showPrice = mode === 'list' && item.price != null;
 
   return (
     <View
@@ -41,7 +50,7 @@ export function ChecklistItemRow({ item, onToggle, onEdit, onDelete }: Checklist
           >
             {item.name}
           </Text>
-          {item.price != null ? (
+          {showPrice ? (
             <Text
               style={[
                 styles.price,
@@ -56,15 +65,16 @@ export function ChecklistItemRow({ item, onToggle, onEdit, onDelete }: Checklist
           ) : null}
         </View>
       </Pressable>
-
-      <View style={styles.actions}>
-        <Pressable onPress={onEdit} style={styles.actionButton} accessibilityRole="button">
-          <Text style={[styles.actionLabel, { color: palette.primary }]}>Editar</Text>
-        </Pressable>
-        <Pressable onPress={onDelete} style={styles.actionButton} accessibilityRole="button">
-          <Text style={[styles.actionLabel, { color: palette.destructive }]}>Remover</Text>
-        </Pressable>
-      </View>
+      {showActions ? (
+        <View style={styles.actions}>
+          <Pressable onPress={onEdit} style={styles.actionButton} accessibilityRole="button">
+            <Text style={[styles.actionLabel, { color: palette.primary }]}>Editar</Text>
+          </Pressable>
+          <Pressable onPress={onDelete} style={styles.actionButton} accessibilityRole="button">
+            <Text style={[styles.actionLabel, { color: palette.destructive }]}>Remover</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }

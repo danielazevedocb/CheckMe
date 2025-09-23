@@ -3,8 +3,10 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
+  Text,
   View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
@@ -17,11 +19,12 @@ import { TextField } from '@/components/ui/text-field';
 import { Colors } from '@/constants/theme';
 import { useThemeMode } from '@/contexts/theme-context';
 import { useChecklist } from '@/hooks/use-checklist';
-import { deleteChecklist, updateChecklistTitle } from '@/repositories/checklist-repository';
+import { deleteChecklist, updateChecklistMode, updateChecklistTitle } from '@/repositories/checklist-repository';
 import { createItem, deleteItem, setItemDone, updateItem } from '@/repositories/item-repository';
-import type { ChecklistItem } from '@/types/checklist';
+import type { ChecklistItem, ChecklistMode } from '@/types/checklist';
 import { formatCurrency, formatProgress, parseCurrencyInput } from '@/utils/format';
 import { useDatabase } from '@/contexts/database-context';
+import type { Database } from '@/lib/database';
 
 interface EditItemState {
   id: number;
@@ -46,12 +49,22 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   const [newItemPrice, setNewItemPrice] = useState('');
   const [editingItem, setEditingItem] = useState<EditItemState | null>(null);
   const [savingItem, setSavingItem] = useState(false);
+  const [modeChanging, setModeChanging] = useState(false);
+  const [textEditorVisible, setTextEditorVisible] = useState(false);
+  const [textDraft, setTextDraft] = useState('');
+  const [syncingText, setSyncingText] = useState(false);
 
   useEffect(() => {
     if (checklist) {
       setTitleDraft(checklist.title);
     }
   }, [checklist]);
+
+  useEffect(() => {
+    if (checklist?.mode === 'text') {
+      setTextDraft(itemsToText(checklist.items));
+    }
+  }, [checklist?.mode, checklist?.items]);
 
   useEffect(() => {
     navigation.setOptions({ title: checklist?.title ?? 'Checklist' });
@@ -200,6 +213,58 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     }
   };
 
+  const handleModeChange = async (nextMode: ChecklistMode) => {
+    if (!checklist || checklist.mode === nextMode) {
+      return;
+    }
+
+    setModeChanging(true);
+    try {
+      await updateChecklistMode(db, checklist.id, nextMode);
+      await refresh();
+      if (nextMode === 'text') {
+        setTextDraft(itemsToText(checklist.items));
+      }
+    } catch (err) {
+      Alert.alert('Erro', 'Não foi possível alterar o modo da checklist.');
+      console.error(err);
+    } finally {
+      setModeChanging(false);
+    }
+  };
+
+  const openTextEditor = () => {
+    if (!checklist) return;
+    setTextDraft(itemsToText(checklist.items));
+    setTextEditorVisible(true);
+  };
+
+  const handleSyncTextItems = async () => {
+    if (!checklist) return;
+
+    const lines = textDraft
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+
+    if (lines.length === 0) {
+      Alert.alert('Informe pelo menos uma linha', 'Escreva o conteúdo da checklist.');
+      return;
+    }
+
+    setSyncingText(true);
+    try {
+      await syncItemsFromLines(db, checklistId, checklist.items, lines);
+      setTextEditorVisible(false);
+      await refresh();
+    } catch (err) {
+      Alert.alert('Erro', 'Não foi possível salvar o texto.');
+      console.error(err);
+    } finally {
+      setSyncingText(false);
+    }
+  };
+
   if (loading && !checklist) {
     return (
       <View style={[styles.centered, { backgroundColor: palette.background }]}
@@ -246,6 +311,33 @@ export default function ChecklistDetailsScreen(): JSX.Element {
         </View>
       </View>
 
+      <View style={[styles.modeSelector, { backgroundColor: palette.surface }]}
+        accessibilityRole="radiogroup">
+        <ModeToggle
+          label="Lista"
+          selected={checklist.mode === 'list'}
+          onPress={() => handleModeChange('list')}
+          palette={palette}
+          disabled={modeChanging}
+        />
+        <ModeToggle
+          label="Texto"
+          selected={checklist.mode === 'text'}
+          onPress={() => handleModeChange('text')}
+          palette={palette}
+          disabled={modeChanging}
+        />
+      </View>
+
+      {checklist.mode === 'text' ? (
+        <View style={[styles.section, styles.textModeInfo, { borderColor: palette.border }]}>
+          <ThemedText style={{ color: palette.textMuted }}>
+            Cada linha do texto vira um item marcável. Use o botão abaixo para editar todo o conteúdo.
+          </ThemedText>
+          <Button label="Editar texto" variant="secondary" onPress={openTextEditor} />
+        </View>
+      ) : null}
+
       <View style={styles.section}>
         {checklist.items.map((item) => (
           <ChecklistItemRow
@@ -254,27 +346,30 @@ export default function ChecklistDetailsScreen(): JSX.Element {
             onToggle={() => handleToggleItem(item)}
             onEdit={() => openEditItem(item)}
             onDelete={() => handleDeleteItem(item)}
+            mode={checklist.mode}
           />
         ))}
       </View>
 
-      <View style={[styles.section, styles.newItemSection, { borderColor: palette.border }]}
-        accessibilityLabel="Adicionar novo item">
-        <TextField
-          label="Novo item"
-          value={newItemName}
-          onChangeText={setNewItemName}
-          placeholder="Nome do item"
-        />
-        <TextField
-          label="Preço"
-          value={newItemPrice}
-          onChangeText={setNewItemPrice}
-          keyboardType="decimal-pad"
-          placeholder="0,00"
-        />
-        <Button label="Adicionar item" onPress={handleAddItem} loading={savingItem} />
-      </View>
+      {checklist.mode === 'list' ? (
+        <View style={[styles.section, styles.newItemSection, { borderColor: palette.border }]}
+          accessibilityLabel="Adicionar novo item">
+          <TextField
+            label="Novo item"
+            value={newItemName}
+            onChangeText={setNewItemName}
+            placeholder="Nome do item"
+          />
+          <TextField
+            label="Preço"
+            value={newItemPrice}
+            onChangeText={setNewItemPrice}
+            keyboardType="decimal-pad"
+            placeholder="0,00"
+          />
+          <Button label="Adicionar item" onPress={handleAddItem} loading={savingItem} />
+        </View>
+      ) : null}
 
       <Button label="Remover checklist" variant="danger" onPress={handleDeleteChecklist} />
 
@@ -293,9 +388,33 @@ export default function ChecklistDetailsScreen(): JSX.Element {
               onChangeText={(value) => setEditingItem((prev) => (prev ? { ...prev, price: value } : prev))}
               keyboardType="decimal-pad"
             />
+        <View style={styles.modalActions}>
+          <Button label="Cancelar" variant="ghost" onPress={() => setEditingItem(null)} />
+          <Button label="Salvar" onPress={handleSaveItemEdit} />
+        </View>
+      </View>
+    </View>
+  </Modal>
+
+      <Modal
+        transparent
+        visible={textEditorVisible}
+        animationType="slide"
+        onRequestClose={() => setTextEditorVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: palette.surface }]}
+            accessibilityLabel="Editar texto da checklist">
+            <TextField
+              label="Itens (um por linha)"
+              value={textDraft}
+              onChangeText={setTextDraft}
+              multiline
+              numberOfLines={10}
+              helperText="Linhas vazias serão ignoradas."
+            />
             <View style={styles.modalActions}>
-              <Button label="Cancelar" variant="ghost" onPress={() => setEditingItem(null)} />
-              <Button label="Salvar" onPress={handleSaveItemEdit} />
+              <Button label="Cancelar" variant="ghost" onPress={() => setTextEditorVisible(false)} />
+              <Button label="Salvar" onPress={handleSyncTextItems} loading={syncingText} />
             </View>
           </View>
         </View>
@@ -319,6 +438,79 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
       </View>
     </View>
   );
+}
+
+function ModeToggle({
+  label,
+  selected,
+  onPress,
+  palette,
+  disabled,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  palette: (typeof Colors)['light'];
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.modePill,
+        {
+          backgroundColor: selected ? palette.primary : 'transparent',
+          opacity: pressed ? 0.85 : 1,
+          borderColor: palette.border,
+        },
+      ]}
+      accessibilityRole="radio"
+      accessibilityState={{ selected, disabled }}
+      accessibilityLabel={label}>
+      <Text
+        style={[
+          styles.modePillLabel,
+          { color: selected ? palette.primaryForeground : palette.text },
+        ]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+async function syncItemsFromLines(
+  db: Database,
+  checklistId: number,
+  currentItems: ChecklistItem[],
+  lines: string[],
+) {
+  const existing = [...currentItems];
+  const minLength = Math.min(existing.length, lines.length);
+
+  for (let index = 0; index < minLength; index += 1) {
+    const item = existing[index];
+    const nextName = lines[index];
+    if (item.name !== nextName) {
+      await updateItem(db, item.id, { name: nextName });
+    }
+  }
+
+  if (lines.length < existing.length) {
+    for (let index = lines.length; index < existing.length; index += 1) {
+      await deleteItem(db, existing[index].id);
+    }
+  }
+
+  if (lines.length > existing.length) {
+    for (let index = existing.length; index < lines.length; index += 1) {
+      await createItem(db, { checklistId, name: lines[index], price: null });
+    }
+  }
+}
+
+function itemsToText(items: ChecklistItem[]): string {
+  return items.map((item) => item.name).join('\n');
 }
 
 const styles = StyleSheet.create({
@@ -364,6 +556,30 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  modeSelector: {
+    flexDirection: 'row',
+    padding: 4,
+    borderRadius: 16,
+    gap: 8,
+  },
+  modePill: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    paddingVertical: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  modePillLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  textModeInfo: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
   },
   modalOverlay: {
     flex: 1,

@@ -1,9 +1,11 @@
 export type ChecklistStatus = 'open' | 'completed';
+export type ChecklistMode = 'list' | 'text';
 
 export interface Checklist {
   id: number;
   title: string;
   createdAt: number;
+  mode: ChecklistMode;
 }
 
 export interface ChecklistItem {

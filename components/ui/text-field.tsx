@@ -18,6 +18,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
   const hasError = Boolean(errorMessage);
+  const isMultiline = Boolean(inputProps.multiline);
 
   return (
     <View style={styles.container}>
@@ -31,6 +32,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
         {...inputProps}
         style={[
           styles.input,
+          isMultiline ? styles.inputMultiline : null,
           {
             backgroundColor: palette.surface,
             borderColor: hasError ? palette.destructive : palette.border,
@@ -69,6 +71,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 16,
     borderWidth: StyleSheet.hairlineWidth,
+  },
+  inputMultiline: {
+    height: undefined,
+    minHeight: 120,
+    paddingTop: 12,
+    paddingBottom: 12,
+    textAlignVertical: 'top',
   },
   message: {
     fontSize: 13,

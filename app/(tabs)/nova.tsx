@@ -199,7 +199,6 @@ export default function NovaChecklistScreen(): JSX.Element {
               label="Texto da checklist"
               value={textContent}
               onChangeText={setTextContent}
-              placeholder={'Item 1\nItem 2\nItem 3'}
               multiline
               numberOfLines={8}
               style={styles.textArea}

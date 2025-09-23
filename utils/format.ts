@@ -34,3 +34,24 @@ export function parseCurrencyInput(value: string): number | null {
 
   return Math.round(result * 100) / 100;
 }
+
+const longDateFormatter = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: 'long',
+  year: 'numeric',
+});
+
+export function formatFullDate(timestamp: number): string {
+  return longDateFormatter.format(new Date(timestamp));
+}
+
+export function startOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+export function differenceInDays(from: number, to: number): number {
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const start = startOfDay(new Date(from)).getTime();
+  const end = startOfDay(new Date(to)).getTime();
+  return Math.round((end - start) / msPerDay);
+}

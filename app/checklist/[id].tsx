@@ -3,12 +3,18 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import DateTimePicker, {
+  DateTimePickerAndroid,
+  type DateTimePickerEvent,
+} from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 
 import { ChecklistItemRow } from '@/components/checklist/checklist-item-row';
@@ -19,10 +25,22 @@ import { TextField } from '@/components/ui/text-field';
 import { Colors } from '@/constants/theme';
 import { useThemeMode } from '@/contexts/theme-context';
 import { useChecklist } from '@/hooks/use-checklist';
-import { deleteChecklist, updateChecklistMode, updateChecklistTitle } from '@/repositories/checklist-repository';
+import {
+  deleteChecklist,
+  updateChecklistMode,
+  updateChecklistSchedule,
+  updateChecklistTitle,
+} from '@/repositories/checklist-repository';
 import { createItem, deleteItem, setItemDone, updateItem } from '@/repositories/item-repository';
 import type { ChecklistItem, ChecklistMode } from '@/types/checklist';
-import { formatCurrency, formatProgress, parseCurrencyInput } from '@/utils/format';
+import {
+  differenceInDays,
+  formatCurrency,
+  formatFullDate,
+  formatProgress,
+  parseCurrencyInput,
+  startOfDay,
+} from '@/utils/format';
 import { useDatabase } from '@/contexts/database-context';
 import type { Database } from '@/lib/database';
 
@@ -31,6 +49,8 @@ interface EditItemState {
   name: string;
   price: string;
 }
+
+type ScheduleState = 'today' | 'upcoming' | 'overdue' | 'default';
 
 export default function ChecklistDetailsScreen(): JSX.Element {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -53,6 +73,9 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   const [textEditorVisible, setTextEditorVisible] = useState(false);
   const [textDraft, setTextDraft] = useState('');
   const [syncingText, setSyncingText] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [updatingSchedule, setUpdatingSchedule] = useState(false);
 
   useEffect(() => {
     if (checklist) {
@@ -69,6 +92,14 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   useEffect(() => {
     navigation.setOptions({ title: checklist?.title ?? 'Checklist' });
   }, [checklist?.title, navigation]);
+
+  useEffect(() => {
+    if (checklist?.scheduledFor) {
+      setScheduledDate(new Date(checklist.scheduledFor));
+    } else {
+      setScheduledDate(null);
+    }
+  }, [checklist?.scheduledFor]);
 
   const totals = useMemo(() => {
     if (!checklist) {
@@ -91,6 +122,23 @@ export default function ChecklistDetailsScreen(): JSX.Element {
 
     return { totalItems, completedItems, totalAmount, completedAmount };
   }, [checklist]);
+
+  const scheduleStatus = useMemo(() => {
+    if (!checklist?.scheduledFor) {
+      return null;
+    }
+    const diff = differenceInDays(Date.now(), checklist.scheduledFor);
+    if (diff === 0) {
+      return { label: 'Hoje', tone: 'today' as ScheduleState };
+    }
+    if (diff > 0) {
+      const label = diff === 1 ? 'Amanhã' : `Em ${diff} dias`;
+      return { label, tone: 'upcoming' as ScheduleState };
+    }
+    const overdue = Math.abs(diff);
+    const label = overdue === 1 ? '1 dia em atraso' : `${overdue} dias em atraso`;
+    return { label, tone: 'overdue' as ScheduleState };
+  }, [checklist?.scheduledFor]);
 
   const handleSaveTitle = async () => {
     if (!checklist) return;
@@ -233,10 +281,49 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     }
   };
 
-  const openTextEditor = () => {
+  const commitSchedule = async (date: Date | null) => {
     if (!checklist) return;
-    setTextDraft(itemsToText(checklist.items));
-    setTextEditorVisible(true);
+    setUpdatingSchedule(true);
+    try {
+      await updateChecklistSchedule(db, checklist.id, date ? startOfDay(date).getTime() : null);
+      setScheduledDate(date);
+      await refresh();
+    } catch (err) {
+      Alert.alert('Erro', 'Não foi possível atualizar o agendamento.');
+      console.error(err);
+    } finally {
+      setUpdatingSchedule(false);
+    }
+  };
+
+  const handleScheduleChange = (event: DateTimePickerEvent, date?: Date) => {
+    if (Platform.OS !== 'android') {
+      setShowDatePicker(false);
+    }
+
+    if (event.type === 'dismissed') {
+      return;
+    }
+
+    if (date) {
+      void commitSchedule(startOfDay(date));
+    }
+  };
+
+  const openSchedulePicker = () => {
+    const today = startOfDay(new Date());
+    const value = scheduledDate ?? today;
+
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value,
+        mode: 'date',
+        onChange: handleScheduleChange,
+        minimumDate: today,
+      });
+    } else {
+      setShowDatePicker(true);
+    }
   };
 
   const handleSyncTextItems = async () => {
@@ -311,6 +398,15 @@ export default function ChecklistDetailsScreen(): JSX.Element {
         </View>
       </View>
 
+      <ScheduleCard
+        palette={palette}
+        scheduledDate={scheduledDate}
+        status={scheduleStatus}
+        onEdit={openSchedulePicker}
+        onClear={() => void commitSchedule(null)}
+        loading={updatingSchedule}
+      />
+
       <View style={[styles.modeSelector, { backgroundColor: palette.surface }]}
         accessibilityRole="radiogroup">
         <ModeToggle
@@ -334,7 +430,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
           <ThemedText style={{ color: palette.textMuted }}>
             Cada linha do texto vira um item marcável. Use o botão abaixo para editar todo o conteúdo.
           </ThemedText>
-          <Button label="Editar texto" variant="secondary" onPress={openTextEditor} />
+          <Button label="Editar texto" variant="secondary" onPress={() => setTextEditorVisible(true)} />
         </View>
       ) : null}
 
@@ -388,13 +484,13 @@ export default function ChecklistDetailsScreen(): JSX.Element {
               onChangeText={(value) => setEditingItem((prev) => (prev ? { ...prev, price: value } : prev))}
               keyboardType="decimal-pad"
             />
-        <View style={styles.modalActions}>
-          <Button label="Cancelar" variant="ghost" onPress={() => setEditingItem(null)} />
-          <Button label="Salvar" onPress={handleSaveItemEdit} />
+            <View style={styles.modalActions}>
+              <Button label="Cancelar" variant="ghost" onPress={() => setEditingItem(null)} />
+              <Button label="Salvar" onPress={handleSaveItemEdit} />
+            </View>
+          </View>
         </View>
-      </View>
-    </View>
-  </Modal>
+      </Modal>
 
       <Modal
         transparent
@@ -419,6 +515,16 @@ export default function ChecklistDetailsScreen(): JSX.Element {
           </View>
         </View>
       </Modal>
+
+      {Platform.OS !== 'android' && showDatePicker ? (
+        <DateTimePicker
+          value={scheduledDate ?? startOfDay(new Date())}
+          mode="date"
+          display="spinner"
+          onChange={handleScheduleChange}
+          minimumDate={startOfDay(new Date())}
+        />
+      ) : null}
     </ScrollView>
   );
 }
@@ -476,6 +582,82 @@ function ModeToggle({
         {label}
       </Text>
     </Pressable>
+  );
+}
+
+function ScheduleCard({
+  scheduledDate,
+  status,
+  onEdit,
+  onClear,
+  palette,
+  loading,
+}: {
+  scheduledDate: Date | null;
+  status: { label: string; tone: ScheduleState } | null;
+  onEdit: () => void;
+  onClear: () => void;
+  palette: (typeof Colors)['light'];
+  loading: boolean;
+}) {
+  return (
+    <View
+      style={[
+        styles.scheduleCard,
+        {
+          borderColor: palette.border,
+          backgroundColor: palette.surface,
+        },
+      ]}
+      accessibilityRole="summary">
+      <View style={styles.scheduleHeader}>
+        <Ionicons name="calendar" size={20} color={palette.primary} />
+        <View style={styles.scheduleInfo}>
+          <ThemedText type="defaultSemiBold">Agendamento</ThemedText>
+          <ThemedText style={{ color: palette.textMuted }}>
+            {scheduledDate ? formatFullDate(scheduledDate.getTime()) : 'Nenhuma data definida'}
+          </ThemedText>
+        </View>
+        {status ? <ScheduleBadge status={status} palette={palette} /> : null}
+      </View>
+      <View style={styles.scheduleActions}>
+        <Button label={scheduledDate ? 'Alterar' : 'Agendar'} variant="secondary" onPress={onEdit} loading={loading} />
+        {scheduledDate ? (
+          <Button label="Remover" variant="ghost" onPress={onClear} disabled={loading} />
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function ScheduleBadge({
+  status,
+  palette,
+}: {
+  status: { label: string; tone: ScheduleState };
+  palette: (typeof Colors)['light'];
+}) {
+  let backgroundColor = palette.surfaceMuted;
+  let textColor = palette.text;
+
+  if (status.tone === 'today') {
+    backgroundColor = palette.destructive;
+    textColor = palette.primaryForeground;
+  } else if (status.tone === 'overdue') {
+    backgroundColor = palette.destructive;
+    textColor = palette.primaryForeground;
+  } else if (status.tone === 'upcoming') {
+    backgroundColor = palette.primary;
+    textColor = palette.primaryForeground;
+  }
+
+  return (
+    <View style={[styles.badge, { backgroundColor }]}
+      accessibilityRole="text">
+      <ThemedText type="defaultSemiBold" style={{ color: textColor }}>
+        {status.label}
+      </ThemedText>
+    </View>
   );
 }
 
@@ -552,10 +734,29 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 16,
   },
-  newItemSection: {
-    paddingVertical: 16,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+  scheduleCard: {
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 16,
+    gap: 12,
+  },
+  scheduleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  scheduleInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  scheduleActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  badge: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   modeSelector: {
     flexDirection: 'row',
@@ -580,6 +781,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     gap: 12,
+  },
+  newItemSection: {
+    paddingVertical: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   modalOverlay: {
     flex: 1,

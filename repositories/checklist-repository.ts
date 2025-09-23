@@ -13,6 +13,7 @@ const SUMMARY_LIST_QUERY = `
     c.title AS title,
     c.created_at AS created_at,
     c.mode AS mode,
+    c.scheduled_for AS scheduled_for,
     COUNT(i.id) AS total_items,
     SUM(CASE WHEN i.done = 1 THEN 1 ELSE 0 END) AS completed_items,
     SUM(COALESCE(i.price, 0)) AS total_amount,
@@ -30,6 +31,7 @@ const SUMMARY_BY_ID_QUERY = `
     c.title AS title,
     c.created_at AS created_at,
     c.mode AS mode,
+    c.scheduled_for AS scheduled_for,
     COUNT(i.id) AS total_items,
     SUM(CASE WHEN i.done = 1 THEN 1 ELSE 0 END) AS completed_items,
     SUM(COALESCE(i.price, 0)) AS total_amount,
@@ -45,6 +47,7 @@ type SummaryRow = {
   title: string;
   created_at: number;
   mode: ChecklistMode;
+  scheduled_for: number | null;
   total_items: number | null;
   completed_items: number | null;
   total_amount: number | null;
@@ -63,11 +66,12 @@ export async function createChecklist(
   db: Database,
   title: string,
   mode: ChecklistMode,
+  scheduledFor: number | null,
 ): Promise<number> {
   const createdAt = Date.now();
   const result = await db.runAsync(
-    'INSERT INTO checklists (title, created_at, mode) VALUES (?, ?, ?);',
-    [title.trim(), createdAt, mode],
+    'INSERT INTO checklists (title, created_at, mode, scheduled_for) VALUES (?, ?, ?, ?);',
+    [title.trim(), createdAt, mode, scheduledFor],
   );
 
   return Number(result.lastInsertRowId ?? 0);
@@ -91,6 +95,14 @@ export async function updateChecklistMode(
   mode: ChecklistMode,
 ): Promise<void> {
   await db.runAsync('UPDATE checklists SET mode = ? WHERE id = ?;', [mode, checklistId]);
+}
+
+export async function updateChecklistSchedule(
+  db: Database,
+  checklistId: number,
+  scheduledFor: number | null,
+): Promise<void> {
+  await db.runAsync('UPDATE checklists SET scheduled_for = ? WHERE id = ?;', [scheduledFor, checklistId]);
 }
 
 export async function listChecklists(
@@ -141,7 +153,8 @@ export async function getChecklist(db: Database, checklistId: number): Promise<C
     title: string;
     created_at: number;
     mode: ChecklistMode;
-  }>('SELECT id, title, created_at, mode FROM checklists WHERE id = ?;', [checklistId]);
+    scheduled_for: number | null;
+  }>('SELECT id, title, created_at, mode, scheduled_for FROM checklists WHERE id = ?;', [checklistId]);
 
   if (!row) {
     return null;
@@ -152,6 +165,7 @@ export async function getChecklist(db: Database, checklistId: number): Promise<C
     title: row.title,
     createdAt: row.created_at,
     mode: row.mode,
+    scheduledFor: row.scheduled_for ?? null,
   };
 }
 
@@ -161,6 +175,7 @@ function mapSummary(row: SummaryRow): ChecklistSummary {
     title: row.title,
     createdAt: row.created_at,
     mode: row.mode,
+    scheduledFor: row.scheduled_for ?? null,
     totalItems: row.total_items ?? 0,
     completedItems: row.completed_items ?? 0,
     totalAmount: roundCurrency(row.total_amount ?? 0),

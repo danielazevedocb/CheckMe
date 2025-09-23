@@ -7,7 +7,8 @@ const MIGRATIONS = [
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
     created_at INTEGER NOT NULL,
-    mode TEXT NOT NULL DEFAULT 'list'
+    mode TEXT NOT NULL DEFAULT 'list',
+    scheduled_for INTEGER NULL
   );`,
   `CREATE TABLE IF NOT EXISTS checklist_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,6 +43,7 @@ async function initialize(): Promise<Database> {
     }
 
     await ensureColumn(db, 'checklists', 'mode', "TEXT NOT NULL DEFAULT 'list'");
+    await ensureColumn(db, 'checklists', 'scheduled_for', 'INTEGER NULL');
   });
 
   return db;

@@ -9,6 +9,11 @@ import {
   Text,
   View,
 } from 'react-native';
+import DateTimePicker, {
+  DateTimePickerAndroid,
+  type DateTimePickerEvent,
+} from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import { Button } from '@/components/ui/button';
@@ -18,7 +23,7 @@ import { useThemeMode } from '@/contexts/theme-context';
 import { useDatabase } from '@/contexts/database-context';
 import { createChecklist } from '@/repositories/checklist-repository';
 import { createItem } from '@/repositories/item-repository';
-import { parseCurrencyInput } from '@/utils/format';
+import { formatFullDate, parseCurrencyInput, startOfDay } from '@/utils/format';
 import type { ChecklistMode } from '@/types/checklist';
 
 interface DraftItem {
@@ -43,6 +48,8 @@ export default function NovaChecklistScreen(): JSX.Element {
   const [items, setItems] = useState<DraftItem[]>([createDraftItem()]);
   const [mode, setMode] = useState<ChecklistMode>('list');
   const [textContent, setTextContent] = useState('');
+  const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const handleModeChange = (nextMode: ChecklistMode) => {
@@ -58,6 +65,36 @@ export default function NovaChecklistScreen(): JSX.Element {
     }
 
     setMode(nextMode);
+  };
+
+  const handleDateChange = (event: DateTimePickerEvent, date?: Date) => {
+    if (Platform.OS !== 'android') {
+      setShowDatePicker(false);
+    }
+
+    if (event.type === 'dismissed') {
+      return;
+    }
+
+    if (date) {
+      setScheduledAt(startOfDay(date));
+    }
+  };
+
+  const handleOpenDatePicker = () => {
+    const today = startOfDay(new Date());
+    const value = scheduledAt ?? today;
+
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value,
+        mode: 'date',
+        onChange: handleDateChange,
+        minimumDate: today,
+      });
+    } else {
+      setShowDatePicker(true);
+    }
   };
 
   const handleSubmit = async () => {
@@ -87,7 +124,8 @@ export default function NovaChecklistScreen(): JSX.Element {
     setSaving(true);
 
     try {
-      const checklistId = await createChecklist(db, normalizedTitle, mode);
+      const scheduledTimestamp = scheduledAt ? startOfDay(scheduledAt).getTime() : null;
+      const checklistId = await createChecklist(db, normalizedTitle, mode, scheduledTimestamp);
       for (const item of normalizedItems) {
         await createItem(db, {
           checklistId,
@@ -100,6 +138,7 @@ export default function NovaChecklistScreen(): JSX.Element {
       setItems([createDraftItem()]);
       setTextContent('');
       setMode('list');
+      setScheduledAt(null);
 
       Alert.alert('Checklist criada!', 'Quer ver os detalhes agora?', [
         {
@@ -163,6 +202,13 @@ export default function NovaChecklistScreen(): JSX.Element {
             />
           </View>
 
+          <ScheduleSelector
+            scheduledAt={scheduledAt}
+            onPickDate={handleOpenDatePicker}
+            onClear={() => setScheduledAt(null)}
+            palette={palette}
+          />
+
           {mode === 'list' ? (
             <>
               {items.map((item, index) => (
@@ -208,6 +254,16 @@ export default function NovaChecklistScreen(): JSX.Element {
 
         <Button label="Salvar checklist" onPress={handleSubmit} loading={saving} />
       </ScrollView>
+
+      {Platform.OS !== 'android' && showDatePicker ? (
+        <DateTimePicker
+          value={scheduledAt ?? startOfDay(new Date())}
+          mode="date"
+          display="spinner"
+          onChange={handleDateChange}
+          minimumDate={startOfDay(new Date())}
+        />
+      ) : null}
     </KeyboardAvoidingView>
   );
 }
@@ -260,6 +316,54 @@ function linesToDrafts(text: string): DraftItem[] {
   return lines.map((line) => ({ ...createDraftItem(), name: line }));
 }
 
+function ScheduleSelector({
+  scheduledAt,
+  onPickDate,
+  onClear,
+  palette,
+}: {
+  scheduledAt: Date | null;
+  onPickDate: () => void;
+  onClear: () => void;
+  palette: (typeof Colors)['light'];
+}) {
+  return (
+    <View style={styles.scheduleRow}>
+      <Pressable
+        style={({ pressed }) => [
+          styles.scheduleButton,
+          {
+            borderColor: palette.border,
+            backgroundColor: palette.surface,
+            opacity: pressed ? 0.8 : 1,
+          },
+        ]}
+        onPress={onPickDate}
+        accessibilityRole="button"
+        accessibilityLabel={scheduledAt ? 'Editar agendamento' : 'Agendar checklist'}>
+        <Ionicons name="calendar" size={20} color={palette.primary} />
+        <Text style={[styles.scheduleLabel, { color: palette.text }]}>
+          {scheduledAt ? formatFullDate(scheduledAt.getTime()) : 'Agendar checklist'}
+        </Text>
+      </Pressable>
+      {scheduledAt ? (
+        <Pressable
+          onPress={onClear}
+          accessibilityLabel="Remover agendamento"
+          style={({ pressed }) => [
+            styles.clearButton,
+            {
+              borderColor: palette.border,
+              opacity: pressed ? 0.6 : 1,
+            },
+          ]}>
+          <Ionicons name="close" size={18} color={palette.textMuted} />
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
@@ -286,20 +390,47 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     gap: 8,
   },
+  textArea: {
+    minHeight: 160,
+    textAlignVertical: 'top',
+  },
+  scheduleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  scheduleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    flex: 1,
+  },
+  scheduleLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  clearButton: {
+    height: 44,
+    width: 44,
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   modePill: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 12,
     paddingVertical: 12,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   modePillLabel: {
     fontSize: 15,
     fontWeight: '600',
-    textAlign: 'center',
-  },
-  textArea: {
-    minHeight: 160,
-    textAlignVertical: 'top',
   },
 });

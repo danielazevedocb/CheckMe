@@ -15,9 +15,11 @@ import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
+import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
 import { Colors } from '@/constants/theme';
+import { CHECKLIST_COLORS, DEFAULT_CHECKLIST_COLOR } from '@/constants/checklist-colors';
 import { useThemeMode } from '@/contexts/theme-context';
 import { useDatabase } from '@/contexts/database-context';
 import { createChecklist } from '@/repositories/checklist-repository';
@@ -50,6 +52,7 @@ export default function NovaChecklistScreen(): JSX.Element {
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerDate, setPickerDate] = useState<Date>(startOfDay(new Date()));
+  const [color, setColor] = useState<string>(DEFAULT_CHECKLIST_COLOR);
   const [saving, setSaving] = useState(false);
 
   const handleModeChange = (nextMode: ChecklistMode) => {
@@ -117,7 +120,7 @@ export default function NovaChecklistScreen(): JSX.Element {
 
     try {
       const scheduledTimestamp = scheduledAt ? startOfDay(scheduledAt).getTime() : null;
-      const checklistId = await createChecklist(db, normalizedTitle, mode, scheduledTimestamp);
+      const checklistId = await createChecklist(db, normalizedTitle, mode, color, scheduledTimestamp);
       for (const item of normalizedItems) {
         await createItem(db, {
           checklistId,
@@ -193,6 +196,11 @@ export default function NovaChecklistScreen(): JSX.Element {
               palette={palette}
             />
           </View>
+
+          <ColorSelector
+            selectedColor={color}
+            onSelect={setColor}
+          />
 
           <ScheduleSelector
             scheduledAt={scheduledAt}
@@ -357,6 +365,45 @@ function ScheduleSelector({
   );
 }
 
+function ColorSelector({
+  selectedColor,
+  onSelect,
+}: {
+  selectedColor: string;
+  onSelect: (color: string) => void;
+}) {
+  return (
+    <View style={styles.colorSection}>
+      <ThemedText type="defaultSemiBold">Cor da checklist</ThemedText>
+      <View
+        style={styles.colorGrid}
+        accessibilityRole="radiogroup"
+        accessibilityLabel="Escolher cor da checklist">
+        {CHECKLIST_COLORS.map((option) => {
+          const isSelected = option.value === selectedColor;
+          return (
+            <Pressable
+              key={option.id}
+              onPress={() => onSelect(option.value)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: isSelected }}
+              accessibilityLabel={`Cor ${option.label}`}
+              style={({ pressed }) => [
+                styles.colorSwatch,
+                {
+                  backgroundColor: option.value,
+                  transform: pressed ? [{ scale: 0.95 }] : undefined,
+                  borderWidth: isSelected ? 3 : 1,
+                },
+              ]}
+            />
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 function SchedulePickerModal({
   visible,
   initialDate,
@@ -434,6 +481,23 @@ const styles = StyleSheet.create({
   textArea: {
     minHeight: 160,
     textAlignVertical: 'top',
+  },
+  colorSection: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  colorGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    width: '100%',
+  },
+  colorSwatch: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   scheduleRow: {
     flexDirection: 'row',

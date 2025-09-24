@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import { Platform } from 'react-native';
 
 const DB_NAME = 'checkme.db';
 
@@ -34,23 +35,32 @@ export async function openDatabase(): Promise<Database> {
   return databasePromise;
 }
 
-async function initialize(): Promise<Database> {
-  const db = await SQLite.openDatabaseAsync(DB_NAME);
+async function initialize(retries = Platform.OS === 'web' ? 3 : 0): Promise<Database> {
+  try {
+    const db = await SQLite.openDatabaseAsync(DB_NAME);
 
-  await db.execAsync('PRAGMA foreign_keys = ON;');
+    await db.execAsync('PRAGMA foreign_keys = ON;');
 
-  await db.withTransactionAsync(async () => {
-    for (const statement of MIGRATIONS) {
-      await db.execAsync(statement);
+    await db.withTransactionAsync(async () => {
+      for (const statement of MIGRATIONS) {
+        await db.execAsync(statement);
+      }
+
+      await ensureColumn(db, 'checklists', 'mode', "TEXT NOT NULL DEFAULT 'list'");
+      await ensureColumn(db, 'checklists', 'color', "TEXT NOT NULL DEFAULT '#2563EB'");
+      await ensureColumn(db, 'checklists', 'scheduled_for', 'INTEGER NULL');
+      await ensureColumn(db, 'checklist_items', 'color', "TEXT NOT NULL DEFAULT '#2563EB'");
+    });
+
+    return db;
+  } catch (error) {
+    if (shouldRetryOpen(error) && retries > 0) {
+      await sleep(200);
+      return initialize(retries - 1);
     }
 
-    await ensureColumn(db, 'checklists', 'mode', "TEXT NOT NULL DEFAULT 'list'");
-    await ensureColumn(db, 'checklists', 'color', "TEXT NOT NULL DEFAULT '#2563EB'");
-    await ensureColumn(db, 'checklists', 'scheduled_for', 'INTEGER NULL');
-    await ensureColumn(db, 'checklist_items', 'color', "TEXT NOT NULL DEFAULT '#2563EB'");
-  });
-
-  return db;
+    throw error;
+  }
 }
 
 async function ensureColumn(db: Database, table: string, column: string, definition: string) {
@@ -60,6 +70,26 @@ async function ensureColumn(db: Database, table: string, column: string, definit
   if (!hasColumn) {
     await db.execAsync(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition};`);
   }
+}
+
+function shouldRetryOpen(error: unknown): boolean {
+  if (Platform.OS !== 'web') {
+    return false;
+  }
+
+  if (error instanceof DOMException && error.name === 'NoModificationAllowedError') {
+    return true;
+  }
+
+  if (error instanceof Error && error.message.includes('createSyncAccessHandle')) {
+    return true;
+  }
+
+  return false;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export async function resetDatabase(): Promise<void> {

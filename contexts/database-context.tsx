@@ -20,6 +20,7 @@ export function DatabaseProvider({ children }: PropsWithChildren): JSX.Element {
         }
       } catch (err) {
         if (isMounted) {
+          console.error('Failed to open database', err);
           setError(err as Error);
         }
       }

@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 
@@ -296,7 +297,23 @@ export default function ChecklistDetailsScreen(): JSX.Element {
 
   const openSchedulePicker = () => {
     const today = startOfDay(new Date());
-    setPickerDate(scheduledDate ?? today);
+    const currentDate = scheduledDate ?? today;
+
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: currentDate,
+        mode: 'date',
+        minimumDate: today,
+        onChange: (event, date) => {
+          if (event.type === 'set' && date) {
+            void commitSchedule(startOfDay(date));
+          }
+        },
+      });
+      return;
+    }
+
+    setPickerDate(currentDate);
     setShowDatePicker(true);
   };
 

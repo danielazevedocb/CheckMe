@@ -16,6 +16,7 @@ const MIGRATIONS = [
     checklist_id INTEGER NOT NULL REFERENCES checklists(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     price REAL NULL,
+    color TEXT NOT NULL DEFAULT '#2563EB',
     done INTEGER NOT NULL DEFAULT 0
   );`,
   `CREATE INDEX IF NOT EXISTS idx_checklist_items_checklist_id ON checklist_items(checklist_id);`,
@@ -46,6 +47,7 @@ async function initialize(): Promise<Database> {
     await ensureColumn(db, 'checklists', 'mode', "TEXT NOT NULL DEFAULT 'list'");
     await ensureColumn(db, 'checklists', 'color', "TEXT NOT NULL DEFAULT '#2563EB'");
     await ensureColumn(db, 'checklists', 'scheduled_for', 'INTEGER NULL');
+    await ensureColumn(db, 'checklist_items', 'color', "TEXT NOT NULL DEFAULT '#2563EB'");
   });
 
   return db;

@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { useThemeMode } from '@/contexts/theme-context';
 import type { ChecklistItem, ChecklistMode } from '@/types/checklist';
+import { blendWithSurface, getReadableTextColor } from '@/utils/color';
 import { formatCurrency } from '@/utils/format';
 
 interface ChecklistItemRowProps {
@@ -24,13 +25,16 @@ export function ChecklistItemRow({
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
   const iconName = item.done ? 'checkmark-circle' : 'ellipse-outline';
-  const iconColor = item.done ? palette.success : palette.textMuted;
+  const accent = item.color ?? palette.primary;
+  const backgroundTint = blendWithSurface(accent, resolved === 'dark' ? 0.28 : 0.12);
+  const iconColor = item.done ? palette.success : accent;
+  const primaryTextColor = getReadableTextColor(accent, palette.text, '#FFFFFF');
   const showActions = mode === 'list';
   const showPrice = mode === 'list' && item.price != null;
 
   return (
     <View
-      style={[styles.container, { backgroundColor: palette.surface, borderColor: palette.border }]}
+      style={[styles.container, { backgroundColor: backgroundTint, borderColor: accent }]}
       accessible
       accessibilityRole="button"
       accessibilityLabel={`Item ${item.name}`}
@@ -43,7 +47,7 @@ export function ChecklistItemRow({
             style={[
               styles.name,
               {
-                color: item.done ? palette.textMuted : palette.text,
+                color: item.done ? palette.textMuted : primaryTextColor,
                 textDecorationLine: item.done ? 'line-through' : 'none',
               },
             ]}
@@ -55,7 +59,7 @@ export function ChecklistItemRow({
               style={[
                 styles.price,
                 {
-                  color: item.done ? palette.success : palette.text,
+                  color: item.done ? palette.success : primaryTextColor,
                   textDecorationLine: item.done ? 'line-through' : 'none',
                 },
               ]}
@@ -68,7 +72,7 @@ export function ChecklistItemRow({
       {showActions ? (
         <View style={styles.actions}>
           <Pressable onPress={onEdit} style={styles.actionButton} accessibilityRole="button">
-            <Text style={[styles.actionLabel, { color: palette.primary }]}>Editar</Text>
+            <Text style={[styles.actionLabel, { color: accent }]}>Editar</Text>
           </Pressable>
           <Pressable onPress={onDelete} style={styles.actionButton} accessibilityRole="button">
             <Text style={[styles.actionLabel, { color: palette.destructive }]}>Remover</Text>

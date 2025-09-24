@@ -16,6 +16,7 @@ export interface ChecklistItem {
   name: string;
   price: number | null;
   done: boolean;
+  color: string;
 }
 
 export interface ChecklistSummary extends Checklist {

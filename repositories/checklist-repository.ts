@@ -107,7 +107,10 @@ export async function updateChecklistColor(
   checklistId: number,
   color: string,
 ): Promise<void> {
-  await db.runAsync('UPDATE checklists SET color = ? WHERE id = ?;', [color, checklistId]);
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('UPDATE checklists SET color = ? WHERE id = ?;', [color, checklistId]);
+    await db.runAsync('UPDATE checklist_items SET color = ? WHERE checklist_id = ?;', [color, checklistId]);
+  });
 }
 
 export async function updateChecklistSchedule(

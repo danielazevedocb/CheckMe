@@ -31,14 +31,12 @@ interface DraftItem {
   id: string;
   name: string;
   price: string;
-  color: string;
 }
 
 const createDraftItem = (): DraftItem => ({
   id: `${Date.now()}-${Math.random()}`,
   name: '',
   price: '',
-  color: DEFAULT_CHECKLIST_COLOR,
 });
 
 export default function NovaChecklistScreen(): JSX.Element {
@@ -104,7 +102,7 @@ export default function NovaChecklistScreen(): JSX.Element {
             .map((item) => ({
               name: item.name.trim(),
               price: parseCurrencyInput(item.price),
-              color: item.color,
+              color,
             }))
             .filter((item) => item.name.length > 0)
         : linesToDrafts(textContent).map((item) => ({ name: item.name.trim(), price: null, color }));
@@ -159,10 +157,6 @@ export default function NovaChecklistScreen(): JSX.Element {
 
   const handleItemChange = (id: string, field: keyof DraftItem, value: string) => {
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
-  };
-
-  const handleItemColorChange = (id: string, value: string) => {
-    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, color: value } : item)));
   };
 
   const handleAddItem = () => {
@@ -236,11 +230,6 @@ export default function NovaChecklistScreen(): JSX.Element {
                     label="Preço"
                     placeholder="0,00"
                     keyboardType="decimal-pad"
-                  />
-                  <ColorSelector
-                    selectedColor={item.color}
-                    onSelect={(value) => handleItemColorChange(item.id, value)}
-                    label={`Cor do item ${index + 1}`}
                   />
                   <Button
                     label="Remover"

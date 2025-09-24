@@ -10,10 +10,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import DateTimePicker, {
-  DateTimePickerAndroid,
-  type DateTimePickerEvent,
-} from '@react-native-community/datetimepicker';
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 
@@ -76,6 +73,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   const [scheduledDate, setScheduledDate] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [updatingSchedule, setUpdatingSchedule] = useState(false);
+  const [pickerDate, setPickerDate] = useState<Date>(startOfDay(new Date()));
 
   useEffect(() => {
     if (checklist) {
@@ -296,34 +294,10 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     }
   };
 
-  const handleScheduleChange = (event: DateTimePickerEvent, date?: Date) => {
-    if (Platform.OS !== 'android') {
-      setShowDatePicker(false);
-    }
-
-    if (event.type === 'dismissed') {
-      return;
-    }
-
-    if (date) {
-      void commitSchedule(startOfDay(date));
-    }
-  };
-
   const openSchedulePicker = () => {
     const today = startOfDay(new Date());
-    const value = scheduledDate ?? today;
-
-    if (Platform.OS === 'android') {
-      DateTimePickerAndroid.open({
-        value,
-        mode: 'date',
-        onChange: handleScheduleChange,
-        minimumDate: today,
-      });
-    } else {
-      setShowDatePicker(true);
-    }
+    setPickerDate(scheduledDate ?? today);
+    setShowDatePicker(true);
   };
 
   const handleSyncTextItems = async () => {
@@ -516,15 +490,16 @@ export default function ChecklistDetailsScreen(): JSX.Element {
         </View>
       </Modal>
 
-      {Platform.OS !== 'android' && showDatePicker ? (
-        <DateTimePicker
-          value={scheduledDate ?? startOfDay(new Date())}
-          mode="date"
-          display="spinner"
-          onChange={handleScheduleChange}
-          minimumDate={startOfDay(new Date())}
-        />
-      ) : null}
+      <SchedulePickerModal
+        visible={showDatePicker}
+        initialDate={pickerDate}
+        onCancel={() => setShowDatePicker(false)}
+        onConfirm={async (date) => {
+          setShowDatePicker(false);
+          await commitSchedule(date);
+        }}
+        palette={palette}
+      />
     </ScrollView>
   );
 }
@@ -627,6 +602,53 @@ function ScheduleCard({
         ) : null}
       </View>
     </View>
+  );
+}
+
+function SchedulePickerModal({
+  visible,
+  initialDate,
+  onCancel,
+  onConfirm,
+  palette,
+}: {
+  visible: boolean;
+  initialDate: Date;
+  onCancel: () => void;
+  onConfirm: (date: Date) => void;
+  palette: (typeof Colors)['light'];
+}) {
+  const [tempDate, setTempDate] = useState<Date>(initialDate);
+
+  useEffect(() => {
+    if (visible) {
+      setTempDate(initialDate);
+    }
+  }, [visible, initialDate]);
+
+  return (
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={onCancel}>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContent, { backgroundColor: palette.surface }]}
+          accessibilityLabel="Selecionar data">
+          <DateTimePicker
+            value={tempDate}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'calendar'}
+            onChange={(event: DateTimePickerEvent, date?: Date) => {
+              if (date) {
+                setTempDate(startOfDay(date));
+              }
+            }}
+            minimumDate={startOfDay(new Date())}
+          />
+          <View style={styles.modalActions}>
+            <Button label="Cancelar" variant="ghost" onPress={onCancel} />
+            <Button label="Confirmar" onPress={() => onConfirm(tempDate)} />
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 

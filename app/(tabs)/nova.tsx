@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -9,10 +10,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import DateTimePicker, {
-  DateTimePickerAndroid,
-  type DateTimePickerEvent,
-} from '@react-native-community/datetimepicker';
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -50,6 +48,7 @@ export default function NovaChecklistScreen(): JSX.Element {
   const [textContent, setTextContent] = useState('');
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pickerDate, setPickerDate] = useState<Date>(startOfDay(new Date()));
   const [saving, setSaving] = useState(false);
 
   const handleModeChange = (nextMode: ChecklistMode) => {
@@ -67,34 +66,10 @@ export default function NovaChecklistScreen(): JSX.Element {
     setMode(nextMode);
   };
 
-  const handleDateChange = (event: DateTimePickerEvent, date?: Date) => {
-    if (Platform.OS !== 'android') {
-      setShowDatePicker(false);
-    }
-
-    if (event.type === 'dismissed') {
-      return;
-    }
-
-    if (date) {
-      setScheduledAt(startOfDay(date));
-    }
-  };
-
   const handleOpenDatePicker = () => {
     const today = startOfDay(new Date());
-    const value = scheduledAt ?? today;
-
-    if (Platform.OS === 'android') {
-      DateTimePickerAndroid.open({
-        value,
-        mode: 'date',
-        onChange: handleDateChange,
-        minimumDate: today,
-      });
-    } else {
-      setShowDatePicker(true);
-    }
+    setPickerDate(scheduledAt ?? today);
+    setShowDatePicker(true);
   };
 
   const handleSubmit = async () => {
@@ -255,15 +230,16 @@ export default function NovaChecklistScreen(): JSX.Element {
         <Button label="Salvar checklist" onPress={handleSubmit} loading={saving} />
       </ScrollView>
 
-      {Platform.OS !== 'android' && showDatePicker ? (
-        <DateTimePicker
-          value={scheduledAt ?? startOfDay(new Date())}
-          mode="date"
-          display="spinner"
-          onChange={handleDateChange}
-          minimumDate={startOfDay(new Date())}
-        />
-      ) : null}
+      <SchedulePickerModal
+        visible={showDatePicker}
+        initialDate={pickerDate}
+        onCancel={() => setShowDatePicker(false)}
+        onConfirm={(date) => {
+          setScheduledAt(date);
+          setShowDatePicker(false);
+        }}
+        palette={palette}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -364,6 +340,53 @@ function ScheduleSelector({
   );
 }
 
+function SchedulePickerModal({
+  visible,
+  initialDate,
+  onCancel,
+  onConfirm,
+  palette,
+}: {
+  visible: boolean;
+  initialDate: Date;
+  onCancel: () => void;
+  onConfirm: (date: Date) => void;
+  palette: (typeof Colors)['light'];
+}) {
+  const [tempDate, setTempDate] = useState<Date>(initialDate);
+
+  useEffect(() => {
+    if (visible) {
+      setTempDate(initialDate);
+    }
+  }, [initialDate, visible]);
+
+  return (
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={onCancel}>
+      <View style={styles.pickerOverlay}>
+        <View style={[styles.pickerContent, { backgroundColor: palette.surface }]}
+        accessibilityLabel="Selecionar data">
+        <DateTimePicker
+          value={tempDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'calendar'}
+          onChange={(event: DateTimePickerEvent, date?: Date) => {
+            if (date) {
+              setTempDate(startOfDay(date));
+            }
+          }}
+          minimumDate={startOfDay(new Date())}
+        />
+          <View style={styles.pickerActions}>
+            <Button label="Cancelar" variant="ghost" onPress={onCancel} />
+            <Button label="Confirmar" onPress={() => onConfirm(tempDate)} />
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
@@ -432,5 +455,21 @@ const styles = StyleSheet.create({
   modePillLabel: {
     fontSize: 15,
     fontWeight: '600',
+  },
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.35)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  pickerContent: {
+    borderRadius: 16,
+    padding: 16,
+    gap: 16,
+  },
+  pickerActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
   },
 });

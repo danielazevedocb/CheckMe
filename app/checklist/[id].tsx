@@ -658,6 +658,7 @@ function SchedulePickerModal({
               }
             }}
             minimumDate={startOfDay(new Date())}
+            style={Platform.OS === 'web' ? styles.webDatePicker : undefined}
           />
           <View style={styles.modalActions}>
             <Button label="Cancelar" variant="ghost" onPress={onCancel} />
@@ -841,5 +842,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: 12,
+  },
+  webDatePicker: {
+    width: '100%',
+    height: 260,
   },
 });

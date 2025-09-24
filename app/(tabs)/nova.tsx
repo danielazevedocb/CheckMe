@@ -383,17 +383,18 @@ function SchedulePickerModal({
       <View style={styles.pickerOverlay}>
         <View style={[styles.pickerContent, { backgroundColor: palette.surface }]}
         accessibilityLabel="Selecionar data">
-        <DateTimePicker
-          value={tempDate}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'calendar'}
-          onChange={(event: DateTimePickerEvent, date?: Date) => {
-            if (date) {
-              setTempDate(startOfDay(date));
-            }
-          }}
-          minimumDate={startOfDay(new Date())}
-        />
+          <DateTimePicker
+            value={tempDate}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'calendar'}
+            onChange={(event: DateTimePickerEvent, date?: Date) => {
+              if (date) {
+                setTempDate(startOfDay(date));
+              }
+            }}
+            minimumDate={startOfDay(new Date())}
+            style={Platform.OS === 'web' ? styles.webDatePicker : undefined}
+          />
           <View style={styles.pickerActions}>
             <Button label="Cancelar" variant="ghost" onPress={onCancel} />
             <Button label="Confirmar" onPress={() => onConfirm(tempDate)} />
@@ -488,5 +489,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: 12,
+  },
+  webDatePicker: {
+    width: '100%',
+    height: 260,
   },
 });

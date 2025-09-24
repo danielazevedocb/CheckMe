@@ -8,6 +8,7 @@ const MIGRATIONS = [
     title TEXT NOT NULL,
     created_at INTEGER NOT NULL,
     mode TEXT NOT NULL DEFAULT 'list',
+    color TEXT NOT NULL DEFAULT '#2563EB',
     scheduled_for INTEGER NULL
   );`,
   `CREATE TABLE IF NOT EXISTS checklist_items (
@@ -43,6 +44,7 @@ async function initialize(): Promise<Database> {
     }
 
     await ensureColumn(db, 'checklists', 'mode', "TEXT NOT NULL DEFAULT 'list'");
+    await ensureColumn(db, 'checklists', 'color', "TEXT NOT NULL DEFAULT '#2563EB'");
     await ensureColumn(db, 'checklists', 'scheduled_for', 'INTEGER NULL');
   });
 

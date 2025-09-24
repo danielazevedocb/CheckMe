@@ -21,11 +21,13 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { TextField } from '@/components/ui/text-field';
 import { Colors } from '@/constants/theme';
+import { CHECKLIST_COLORS, DEFAULT_CHECKLIST_COLOR } from '@/constants/checklist-colors';
 import { useThemeMode } from '@/contexts/theme-context';
 import { useChecklist } from '@/hooks/use-checklist';
 import {
   deleteChecklist,
   updateChecklistMode,
+  updateChecklistColor,
   updateChecklistSchedule,
   updateChecklistTitle,
 } from '@/repositories/checklist-repository';
@@ -39,6 +41,7 @@ import {
   parseCurrencyInput,
   startOfDay,
 } from '@/utils/format';
+import { getReadableTextColor } from '@/utils/color';
 import { useDatabase } from '@/contexts/database-context';
 import type { Database } from '@/lib/database';
 
@@ -75,10 +78,13 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [updatingSchedule, setUpdatingSchedule] = useState(false);
   const [pickerDate, setPickerDate] = useState<Date>(startOfDay(new Date()));
+  const [color, setColor] = useState<string>(DEFAULT_CHECKLIST_COLOR);
+  const [updatingColor, setUpdatingColor] = useState(false);
 
   useEffect(() => {
     if (checklist) {
       setTitleDraft(checklist.title);
+      setColor(checklist.color);
     }
   }, [checklist]);
 
@@ -295,6 +301,24 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     }
   };
 
+  const handleColorChange = async (nextColor: string) => {
+    if (!checklist || color === nextColor) {
+      return;
+    }
+
+    setUpdatingColor(true);
+    try {
+      await updateChecklistColor(db, checklist.id, nextColor);
+      setColor(nextColor);
+      await refresh();
+    } catch (err) {
+      Alert.alert('Erro', 'Não foi possível atualizar a cor.');
+      console.error(err);
+    } finally {
+      setUpdatingColor(false);
+    }
+  };
+
   const openSchedulePicker = () => {
     const today = startOfDay(new Date());
     const currentDate = scheduledDate ?? today;
@@ -396,6 +420,13 @@ export default function ChecklistDetailsScreen(): JSX.Element {
         onEdit={openSchedulePicker}
         onClear={() => void commitSchedule(null)}
         loading={updatingSchedule}
+        color={color}
+      />
+
+      <ColorSelector
+        currentColor={color}
+        onSelect={handleColorChange}
+        disabled={updatingColor}
       />
 
       <View style={[styles.modeSelector, { backgroundColor: palette.surface }]}
@@ -584,6 +615,7 @@ function ScheduleCard({
   onClear,
   palette,
   loading,
+  color,
 }: {
   scheduledDate: Date | null;
   status: { label: string; tone: ScheduleState } | null;
@@ -591,6 +623,7 @@ function ScheduleCard({
   onClear: () => void;
   palette: (typeof Colors)['light'];
   loading: boolean;
+  color: string;
 }) {
   return (
     <View
@@ -603,14 +636,14 @@ function ScheduleCard({
       ]}
       accessibilityRole="summary">
       <View style={styles.scheduleHeader}>
-        <Ionicons name="calendar" size={20} color={palette.primary} />
+        <Ionicons name="calendar" size={20} color={color} />
         <View style={styles.scheduleInfo}>
           <ThemedText type="defaultSemiBold">Agendamento</ThemedText>
           <ThemedText style={{ color: palette.textMuted }}>
             {scheduledDate ? formatFullDate(scheduledDate.getTime()) : 'Nenhuma data definida'}
           </ThemedText>
         </View>
-        {status ? <ScheduleBadge status={status} palette={palette} /> : null}
+        {status ? <ScheduleBadge status={status} palette={palette} color={color} /> : null}
       </View>
       <View style={styles.scheduleActions}>
         <Button label={scheduledDate ? 'Alterar' : 'Agendar'} variant="secondary" onPress={onEdit} loading={loading} />
@@ -673,23 +706,16 @@ function SchedulePickerModal({
 function ScheduleBadge({
   status,
   palette,
+  color,
 }: {
   status: { label: string; tone: ScheduleState };
   palette: (typeof Colors)['light'];
+  color: string;
 }) {
-  let backgroundColor = palette.surfaceMuted;
-  let textColor = palette.text;
-
-  if (status.tone === 'today') {
-    backgroundColor = palette.destructive;
-    textColor = palette.primaryForeground;
-  } else if (status.tone === 'overdue') {
-    backgroundColor = palette.destructive;
-    textColor = palette.primaryForeground;
-  } else if (status.tone === 'upcoming') {
-    backgroundColor = palette.primary;
-    textColor = palette.primaryForeground;
-  }
+  const highlight = color;
+  const showHighlight = status.tone === 'today' || status.tone === 'upcoming' || status.tone === 'overdue';
+  const backgroundColor = showHighlight ? highlight : palette.surfaceMuted;
+  const textColor = showHighlight ? getReadableTextColor(highlight) : palette.text;
 
   return (
     <View style={[styles.badge, { backgroundColor }]}
@@ -697,6 +723,45 @@ function ScheduleBadge({
       <ThemedText type="defaultSemiBold" style={{ color: textColor }}>
         {status.label}
       </ThemedText>
+    </View>
+  );
+}
+
+function ColorSelector({
+  currentColor,
+  onSelect,
+  disabled,
+}: {
+  currentColor: string;
+  onSelect: (color: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <View style={styles.colorSection} accessibilityRole="radiogroup">
+      <ThemedText type="defaultSemiBold">Cor da checklist</ThemedText>
+      <View style={styles.colorGrid}>
+        {CHECKLIST_COLORS.map((option) => {
+          const selected = option.value === currentColor;
+          return (
+            <Pressable
+              key={option.id}
+              onPress={() => (disabled ? undefined : onSelect(option.value))}
+              disabled={disabled}
+              accessibilityRole="radio"
+              accessibilityState={{ selected, disabled }}
+              accessibilityLabel={`Cor ${option.label}`}
+              style={({ pressed }) => [
+                styles.colorSwatch,
+                {
+                  backgroundColor: option.value,
+                  borderWidth: selected ? 3 : 1,
+                  opacity: pressed ? 0.85 : 1,
+                },
+              ]}
+            />
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -821,6 +886,20 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     gap: 12,
+  },
+  colorSection: {
+    gap: 12,
+  },
+  colorGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  colorSwatch: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderColor: 'rgba(15,23,42,0.2)',
   },
   newItemSection: {
     paddingVertical: 16,

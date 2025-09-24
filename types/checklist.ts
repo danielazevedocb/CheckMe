@@ -6,6 +6,7 @@ export interface Checklist {
   title: string;
   createdAt: number;
   mode: ChecklistMode;
+  color: string;
   scheduledFor: number | null;
 }
 

@@ -6,6 +6,7 @@ import { Colors } from '@/constants/theme';
 import { useThemeMode } from '@/contexts/theme-context';
 import type { ChecklistSummary } from '@/types/checklist';
 import { differenceInDays, formatCurrency, formatFullDate, formatProgress } from '@/utils/format';
+import { blendWithSurface, getReadableTextColor } from '@/utils/color';
 
 interface ChecklistCardProps {
   summary: ChecklistSummary;
@@ -17,7 +18,8 @@ export function ChecklistCard({ summary, onPress }: ChecklistCardProps): JSX.Ele
   const palette = Colors[resolved];
   const isCompleted = summary.totalItems > 0 && summary.totalItems === summary.completedItems;
   const schedule = getScheduleState(summary.scheduledFor ?? null);
-  const containerBackground = getContainerBackgroundColor(resolved, palette, schedule?.tone);
+  const accentColor = summary.color;
+  const containerBackground = getContainerBackgroundColor(resolved, palette, accentColor, schedule?.tone);
 
   return (
     <Pressable
@@ -26,7 +28,7 @@ export function ChecklistCard({ summary, onPress }: ChecklistCardProps): JSX.Ele
         styles.container,
         {
           backgroundColor: containerBackground,
-          borderColor: schedule?.tone === 'overdue' || schedule?.tone === 'today' ? palette.destructive : palette.border,
+          borderColor: accentColor,
           opacity: pressed ? 0.9 : 1,
         },
       ]}
@@ -56,14 +58,14 @@ export function ChecklistCard({ summary, onPress }: ChecklistCardProps): JSX.Ele
       </View>
 
       {schedule ? (
-        <View style={[styles.scheduleRow, scheduleStyle(schedule.tone, palette)]}
+        <View style={[styles.scheduleRow, scheduleStyle(schedule.tone, palette, accentColor)]}
           accessibilityRole="text">
-          <Ionicons name="calendar" size={16} color={scheduleTextColor(schedule.tone, palette)} />
+          <Ionicons name="calendar" size={16} color={scheduleTextColor(schedule.tone, palette, accentColor)} />
           <View style={styles.scheduleInfo}>
-            <Text style={[styles.scheduleLabel, { color: scheduleTextColor(schedule.tone, palette) }]}>
+            <Text style={[styles.scheduleLabel, { color: scheduleTextColor(schedule.tone, palette, accentColor) }]}>
               {schedule.label}
             </Text>
-            <Text style={[styles.scheduleDate, { color: scheduleTextColor(schedule.tone, palette) }]}>
+            <Text style={[styles.scheduleDate, { color: scheduleTextColor(schedule.tone, palette, accentColor) }]}>
               {formatFullDate(summary.scheduledFor!)}
             </Text>
           </View>
@@ -178,13 +180,13 @@ function getScheduleState(
 function scheduleStyle(
   tone: 'today' | 'upcoming' | 'overdue',
   palette: (typeof Colors)['light'],
+  color: string,
 ) {
   switch (tone) {
     case 'today':
     case 'overdue':
-      return { backgroundColor: palette.destructive };
     case 'upcoming':
-      return { backgroundColor: palette.primary };
+      return { backgroundColor: blendWithSurface(color, 0.2) };
     default:
       return { backgroundColor: palette.surfaceMuted };
   }
@@ -193,9 +195,10 @@ function scheduleStyle(
 function scheduleTextColor(
   tone: 'today' | 'upcoming' | 'overdue',
   palette: (typeof Colors)['light'],
+  color: string,
 ) {
   if (tone === 'upcoming' || tone === 'today' || tone === 'overdue') {
-    return palette.primaryForeground;
+    return getReadableTextColor(color, '#0F172A', '#FFFFFF');
   }
   return palette.text;
 }
@@ -203,19 +206,14 @@ function scheduleTextColor(
 function getContainerBackgroundColor(
   theme: 'light' | 'dark',
   palette: (typeof Colors)['light'],
-  tone?: 'today' | 'upcoming' | 'overdue',
+  color: string,
+  tone?: 'today' | 'upcoming' | 'overdue' | null,
 ) {
   if (!tone) {
-    return palette.surface;
+    const alpha = theme === 'dark' ? 0.12 : 0.08;
+    return blendWithSurface(color, alpha);
   }
 
-  if (tone === 'today' || tone === 'overdue') {
-    return theme === 'dark' ? '#47191c' : '#fee2e2';
-  }
-
-  if (tone === 'upcoming') {
-    return theme === 'dark' ? '#1b2f4f' : '#dbeafe';
-  }
-
-  return palette.surface;
+  const alpha = tone === 'overdue' ? 0.25 : 0.18;
+  return blendWithSurface(color, alpha);
 }

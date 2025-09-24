@@ -5,12 +5,14 @@ export interface ItemInput {
   checklistId: number;
   name: string;
   price?: number | null;
+  color?: string;
 }
 
 export async function createItem(db: Database, input: ItemInput): Promise<number> {
+  const color = input.color ?? '#2563EB';
   const result = await db.runAsync(
-    'INSERT INTO checklist_items (checklist_id, name, price, done) VALUES (?, ?, ?, 0);',
-    [input.checklistId, input.name.trim(), normalizePrice(input.price)],
+    'INSERT INTO checklist_items (checklist_id, name, price, color, done) VALUES (?, ?, ?, ?, 0);',
+    [input.checklistId, input.name.trim(), normalizePrice(input.price), color],
   );
 
   return Number(result.lastInsertRowId ?? 0);
@@ -28,6 +30,11 @@ export async function updateItem(db: Database, itemId: number, updates: Partial<
   if (updates.price !== undefined) {
     fields.push('price = ?');
     values.push(normalizePrice(updates.price));
+  }
+
+  if (typeof updates.color === 'string') {
+    fields.push('color = ?');
+    values.push(updates.color);
   }
 
   if (typeof updates.done === 'boolean') {

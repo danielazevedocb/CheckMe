@@ -49,6 +49,7 @@ interface EditItemState {
   id: number;
   name: string;
   price: string;
+  color: string;
 }
 
 type ScheduleState = 'today' | 'upcoming' | 'overdue' | 'default';
@@ -68,6 +69,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   const [isSavingTitle, setSavingTitle] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
+  const [newItemColor, setNewItemColor] = useState(DEFAULT_CHECKLIST_COLOR);
   const [editingItem, setEditingItem] = useState<EditItemState | null>(null);
   const [savingItem, setSavingItem] = useState(false);
   const [modeChanging, setModeChanging] = useState(false);
@@ -105,6 +107,12 @@ export default function ChecklistDetailsScreen(): JSX.Element {
       setScheduledDate(null);
     }
   }, [checklist?.scheduledFor]);
+
+  useEffect(() => {
+    if (checklist?.color) {
+      setNewItemColor(checklist.color);
+    }
+  }, [checklist?.color]);
 
   const totals = useMemo(() => {
     if (!checklist) {
@@ -189,9 +197,15 @@ export default function ChecklistDetailsScreen(): JSX.Element {
         checklistId,
         name,
         price: parseCurrencyInput(newItemPrice),
+        color: newItemColor,
       });
       setNewItemName('');
       setNewItemPrice('');
+       if (checklist?.color) {
+         setNewItemColor(checklist.color);
+       } else {
+         setNewItemColor(DEFAULT_CHECKLIST_COLOR);
+       }
       await refresh();
     } catch (err) {
       Alert.alert('Erro', 'Não foi possível adicionar o item.');
@@ -242,7 +256,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   };
 
   const openEditItem = (item: ChecklistItem) => {
-    setEditingItem({ id: item.id, name: item.name, price: item.price?.toString() ?? '' });
+    setEditingItem({ id: item.id, name: item.name, price: item.price?.toString() ?? '', color: item.color });
   };
 
   const handleSaveItemEdit = async () => {
@@ -257,6 +271,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
       await updateItem(db, editingItem.id, {
         name,
         price: parseCurrencyInput(editingItem.price),
+        color: editingItem.color,
       });
       setEditingItem(null);
       await refresh();
@@ -356,7 +371,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
 
     setSyncingText(true);
     try {
-      await syncItemsFromLines(db, checklistId, checklist.items, lines);
+      await syncItemsFromLines(db, checklistId, checklist.items, lines, color);
       setTextEditorVisible(false);
       await refresh();
     } catch (err) {
@@ -427,6 +442,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
         currentColor={color}
         onSelect={handleColorChange}
         disabled={updatingColor}
+        label="Cor do item"
       />
 
       <View style={[styles.modeSelector, { backgroundColor: palette.surface }]}
@@ -485,6 +501,11 @@ export default function ChecklistDetailsScreen(): JSX.Element {
             keyboardType="decimal-pad"
             placeholder="0,00"
           />
+          <ColorSelector
+            currentColor={newItemColor}
+            onSelect={setNewItemColor}
+            label="Cor do novo item"
+          />
           <Button label="Adicionar item" onPress={handleAddItem} loading={savingItem} />
         </View>
       ) : null}
@@ -505,6 +526,11 @@ export default function ChecklistDetailsScreen(): JSX.Element {
               value={editingItem?.price ?? ''}
               onChangeText={(value) => setEditingItem((prev) => (prev ? { ...prev, price: value } : prev))}
               keyboardType="decimal-pad"
+            />
+            <ColorSelector
+              currentColor={editingItem?.color ?? DEFAULT_CHECKLIST_COLOR}
+              onSelect={(value) => setEditingItem((prev) => (prev ? { ...prev, color: value } : prev))}
+              disabled={false}
             />
             <View style={styles.modalActions}>
               <Button label="Cancelar" variant="ghost" onPress={() => setEditingItem(null)} />
@@ -731,15 +757,17 @@ function ColorSelector({
   currentColor,
   onSelect,
   disabled,
+  label = 'Cor do item',
 }: {
   currentColor: string;
   onSelect: (color: string) => void;
   disabled?: boolean;
+  label?: string;
 }) {
   return (
     <View style={styles.colorSection} accessibilityRole="radiogroup">
-      <ThemedText type="defaultSemiBold">Cor da checklist</ThemedText>
-      <View style={styles.colorGrid}>
+      {label ? <ThemedText type="defaultSemiBold">{label}</ThemedText> : null}
+      <View style={styles.colorGrid} accessibilityLabel="Escolher cor">
         {CHECKLIST_COLORS.map((option) => {
           const selected = option.value === currentColor;
           return (
@@ -771,6 +799,7 @@ async function syncItemsFromLines(
   checklistId: number,
   currentItems: ChecklistItem[],
   lines: string[],
+  defaultColor: string,
 ) {
   const existing = [...currentItems];
   const minLength = Math.min(existing.length, lines.length);
@@ -791,7 +820,7 @@ async function syncItemsFromLines(
 
   if (lines.length > existing.length) {
     for (let index = existing.length; index < lines.length; index += 1) {
-      await createItem(db, { checklistId, name: lines[index], price: null });
+      await createItem(db, { checklistId, name: lines[index], price: null, color: defaultColor });
     }
   }
 }

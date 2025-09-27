@@ -6,12 +6,13 @@ Aplicativo mobile em Expo para criar, acompanhar e concluir checklists com persi
 
 - Criar checklists com título, itens e preços opcionais.
 - Alternar entre **Modo Lista** (itens estruturados) e **Modo Texto** (cada linha vira um item marcável).
+- Definir uma cor por checklist, aplicada automaticamente a todos os itens existentes e novos.
 - Editar, marcar como feito ou remover itens individualmente.
-- Agendar uma data para cada checklist e ver indicadores de "Hoje", "Em breve" ou "Atrasado".
-- Separar listas em abas **Abertas** e **Concluídas** com busca por título.
-- Calcular totais gerais e somatório dos itens concluídos.
+- Agendar uma data para cada checklist e ver indicadores visuais de "Hoje", "Em breve" ou "Atrasado".
+- Separar listas em abas **Abertas** e **Concluídas** com busca por título e indicador de progresso.
+- Calcular totais gerais e somatório dos itens concluídos em tempo real.
 - Suporte a tema claro/escuro com persistência da preferência do usuário.
-- Banco local SQLite com migrations automáticas e repositórios tipados.
+- Banco local SQLite com migrations automáticas, retries no fallback web e repositórios tipados.
 
 ## Stack
 
@@ -36,6 +37,7 @@ lib/database.ts     # Migrations e abertura do SQLite
 repositories/       # Regras de acesso aos dados (checklists e itens)
 hooks/              # Hooks de listagem e detalhe
 utils/format.ts     # Funções de formatação e datas
+constants/checklist-colors.ts # Paleta disponível para os usuários
 ```
 
 ## Banco de dados local
@@ -72,13 +74,20 @@ utils/format.ts     # Funções de formatação e datas
 
 ### Scripts úteis
 
-| Script              | Descrição                                |
-| ------------------- | ---------------------------------------- |
-| `npm run start`     | Metro + escolha da plataforma            |
-| `npm run android`   | Inicia direto no Android (expo start)    |
-| `npm run ios`       | Inicia direto no iOS (macOS)             |
-| `npm run web`       | Abre a versão web com Expo               |
-| `npm run lint`      | Executa o ESLint com as regras da Expo   |
+| Script                  | Descrição                                         |
+| ----------------------- | ------------------------------------------------- |
+| `npm run start`         | Metro + escolha da plataforma                     |
+| `npm run android`       | Inicia direto no Android (expo start)             |
+| `npm run ios`           | Inicia direto no iOS (macOS)                      |
+| `npm run web`           | Abre a versão web com Expo                        |
+| `npm run lint`          | Executa o ESLint com as regras da Expo            |
+| `npm run generate:assets` | Recria ícones, splash e favicon a partir de `assets/images/logo.png` |
+
+### Branding e ícones
+
+- Centralize a arte principal em `assets/images/logo.png`.
+- Sempre que atualizar esse arquivo, execute `npm run generate:assets` para regerar `icon.png`, adaptive icon (foreground/background/monochrome), splash e favicon.
+- As cores usadas no `app.json` seguem o mesmo gradiente aplicado aos cartões e badges do app.
 
 ## Gerar APK com EAS Build
 

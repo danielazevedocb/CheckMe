@@ -6,6 +6,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -426,6 +427,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   }
 
   const isListMode = checklist.mode === 'list';
+  const isWeb = Platform.OS === 'web';
 
   const renderHeader = () => (
     <View style={styles.header}>
@@ -537,8 +539,8 @@ export default function ChecklistDetailsScreen(): JSX.Element {
         onEdit={() => openEditItem(item)}
         onDelete={() => handleDeleteItem(item)}
         mode={checklist.mode}
-        dragEnabled={isListMode && itemsOrder.length > 1}
-        onDrag={isListMode && itemsOrder.length > 1 ? drag : undefined}
+        dragEnabled={!isWeb && isListMode && itemsOrder.length > 1}
+        onDrag={!isWeb && isListMode && itemsOrder.length > 1 ? drag : undefined}
         isDragging={isActive}
       />
     </ScaleDecorator>
@@ -571,32 +573,63 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     }
   };
 
+  const renderWebList = () => (
+    <ScrollView
+      style={styles.flex}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+      accessibilityLabel={`Checklist ${checklist.title}`}>
+      {renderHeader()}
+      <View style={styles.itemsWrapper}>
+        {itemsOrder.map((item) => (
+          <ChecklistItemRow
+            key={item.id}
+            item={item}
+            onToggle={() => handleToggleItem(item)}
+            onEdit={() => openEditItem(item)}
+            onDelete={() => handleDeleteItem(item)}
+            mode={checklist.mode}
+            dragEnabled={false}
+          />
+        ))}
+        {itemsOrder.length === 0 ? (
+          <View style={styles.emptyList}>
+            <ThemedText style={{ color: palette.textMuted }}>Nenhum item adicionado ainda.</ThemedText>
+          </View>
+        ) : null}
+      </View>
+      {renderFooter()}
+    </ScrollView>
+  );
+
+  const renderNativeList = () => (
+    <DraggableFlatList
+      style={styles.flex}
+      contentContainerStyle={styles.listContent}
+      data={itemsOrder}
+      keyExtractor={(item) => item.id.toString()}
+      renderItem={renderChecklistItem}
+      onDragEnd={handleDragEnd}
+      dragEnabled={isListMode && itemsOrder.length > 1}
+      activationDistance={12}
+      keyboardShouldPersistTaps="handled"
+      ListHeaderComponent={renderHeader}
+      ListFooterComponent={renderFooter}
+      ListEmptyComponent={
+        <View style={styles.emptyList}>
+          <ThemedText style={{ color: palette.textMuted }}>Nenhum item adicionado ainda.</ThemedText>
+        </View>
+      }
+      accessibilityLabel={`Checklist ${checklist.title}`}
+    />
+  );
+
   return (
     <KeyboardAvoidingView
       style={[styles.screen, { backgroundColor: palette.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={headerHeight}>
-      <DraggableFlatList
-        style={styles.flex}
-        contentContainerStyle={styles.listContent}
-        data={itemsOrder}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={renderChecklistItem}
-        onDragEnd={handleDragEnd}
-        dragEnabled={isListMode && itemsOrder.length > 1}
-        activationDistance={12}
-        keyboardShouldPersistTaps="handled"
-        ListHeaderComponent={renderHeader}
-        ListFooterComponent={renderFooter}
-        ListHeaderComponentStyle={styles.headerWrapper}
-        ListFooterComponentStyle={styles.footerWrapper}
-        ListEmptyComponent={
-          <View style={styles.emptyList}>
-            <ThemedText style={{ color: palette.textMuted }}>Nenhum item adicionado ainda.</ThemedText>
-          </View>
-        }
-        accessibilityLabel={`Checklist ${checklist.title}`}
-      />
+      {isWeb ? renderWebList() : renderNativeList()}
 
       <Modal transparent visible={Boolean(editingItem)} animationType="slide" onRequestClose={() => setEditingItem(null)}>
         <View style={styles.modalOverlay}>
@@ -935,27 +968,19 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
-  container: {},
-  header: {
-    gap: 24,
-  },
-  footer: {
-    gap: 24,
-  },
-  headerWrapper: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    gap: 24,
-  },
-  footerWrapper: {
-    paddingHorizontal: 16,
-    paddingBottom: 48,
-    gap: 24,
-  },
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 48,
     paddingTop: 16,
+    gap: 16,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 48,
+    paddingTop: 16,
+    gap: 24,
+  },
+  itemsWrapper: {
     gap: 16,
   },
   flex: {

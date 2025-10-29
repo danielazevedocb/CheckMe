@@ -28,7 +28,8 @@ export function ChecklistItemRow({
   const accent = item.color ?? palette.primary;
   const backgroundTint = blendWithSurface(accent, resolved === 'dark' ? 0.28 : 0.12);
   const iconColor = item.done ? palette.success : accent;
-  const primaryTextColor = getReadableTextColor(accent, palette.text, '#FFFFFF');
+  const primaryTextColor =
+    resolved === 'dark' ? getReadableTextColor(accent, palette.text, '#FFFFFF') : palette.text;
   const showActions = mode === 'list';
   const quantity = item.quantity ?? 1;
   const hasPrice = mode === 'list' && item.price != null;

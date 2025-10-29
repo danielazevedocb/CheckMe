@@ -13,6 +13,9 @@ interface ChecklistItemRowProps {
   onEdit: () => void;
   onDelete: () => void;
   mode?: ChecklistMode;
+  onDrag?: () => void;
+  dragEnabled?: boolean;
+  isDragging?: boolean;
 }
 
 export function ChecklistItemRow({
@@ -21,6 +24,9 @@ export function ChecklistItemRow({
   onEdit,
   onDelete,
   mode = 'list',
+  onDrag,
+  dragEnabled = false,
+  isDragging = false,
 }: ChecklistItemRowProps): JSX.Element {
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
@@ -43,7 +49,10 @@ export function ChecklistItemRow({
 
   return (
     <View
-      style={[styles.container, { backgroundColor: backgroundTint, borderColor: accent }]}
+      style={[
+        styles.container,
+        { backgroundColor: backgroundTint, borderColor: accent, opacity: isDragging ? 0.85 : 1 },
+      ]}
       accessible
       accessibilityRole="button"
       accessibilityLabel={`Item ${item.name}`}
@@ -80,6 +89,18 @@ export function ChecklistItemRow({
       </Pressable>
       {showActions ? (
         <View style={styles.actions}>
+          {dragEnabled ? (
+            <Pressable
+              onLongPress={onDrag}
+              delayLongPress={150}
+              disabled={!onDrag}
+              style={styles.dragHandle}
+              accessibilityRole="button"
+              accessibilityLabel="Reordenar item"
+            >
+              <Ionicons name="reorder-three-outline" size={22} color={palette.textMuted} />
+            </Pressable>
+          ) : null}
           <Pressable onPress={onEdit} style={styles.actionButton} accessibilityRole="button">
             <Text style={[styles.actionLabel, { color: accent }]}>Editar</Text>
           </Pressable>
@@ -123,6 +144,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 16,
     paddingBottom: 12,
+    alignItems: 'center',
   },
   actionButton: {
     paddingVertical: 4,
@@ -131,5 +153,9 @@ const styles = StyleSheet.create({
   actionLabel: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  dragHandle: {
+    paddingVertical: 4,
+    paddingHorizontal: 4,
   },
 });

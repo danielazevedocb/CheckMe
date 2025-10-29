@@ -63,6 +63,7 @@ type ItemRow = {
   name: string;
   price: number | null;
   quantity: number | null;
+  position: number | null;
   color: string;
   done: number;
 };
@@ -148,18 +149,19 @@ export async function getChecklistWithItems(
   const summary = mapSummary(summaryRow);
 
   const items = await db.getAllAsync<ItemRow>(
-    `SELECT id, checklist_id, name, price, quantity, color, done FROM checklist_items WHERE checklist_id = ? ORDER BY id ASC;`,
+    `SELECT id, checklist_id, name, price, quantity, position, color, done FROM checklist_items WHERE checklist_id = ? ORDER BY position ASC, id ASC;`,
     [checklistId],
   );
 
   return {
     ...summary,
-    items: items.map((item) => ({
+    items: items.map((item, index) => ({
       id: item.id,
       checklistId: item.checklist_id,
       name: item.name,
       price: item.price,
       quantity: item.quantity ?? 1,
+      position: item.position ?? index + 1,
       color: item.color,
       done: item.done === 1,
     })),

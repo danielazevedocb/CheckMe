@@ -16,6 +16,7 @@ export interface ChecklistItem {
   name: string;
   price: number | null;
   quantity: number;
+  position: number;
   done: boolean;
   color: string;
 }

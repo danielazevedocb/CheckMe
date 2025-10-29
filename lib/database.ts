@@ -18,6 +18,7 @@ const MIGRATIONS = [
     name TEXT NOT NULL,
     price REAL NULL,
     quantity INTEGER NOT NULL DEFAULT 1,
+    position INTEGER NOT NULL DEFAULT 0,
     color TEXT NOT NULL DEFAULT '#2563EB',
     done INTEGER NOT NULL DEFAULT 0
   );`,
@@ -52,6 +53,8 @@ async function initialize(retries = Platform.OS === 'web' ? 3 : 0): Promise<Data
       await ensureColumn(db, 'checklists', 'scheduled_for', 'INTEGER NULL');
       await ensureColumn(db, 'checklist_items', 'color', "TEXT NOT NULL DEFAULT '#2563EB'");
       await ensureColumn(db, 'checklist_items', 'quantity', 'INTEGER NOT NULL DEFAULT 1');
+      await ensureColumn(db, 'checklist_items', 'position', 'INTEGER NOT NULL DEFAULT 0');
+      await normalizeItemPositions(db);
     });
 
     return db;
@@ -72,6 +75,22 @@ async function ensureColumn(db: Database, table: string, column: string, definit
   if (!hasColumn) {
     await db.execAsync(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition};`);
   }
+}
+
+async function normalizeItemPositions(db: Database) {
+  await db.execAsync(`
+    WITH ranked AS (
+      SELECT
+        id,
+        ROW_NUMBER() OVER (PARTITION BY checklist_id ORDER BY position, id) AS rn
+      FROM checklist_items
+    )
+    UPDATE checklist_items
+    SET position = ranked.rn
+    FROM ranked
+    WHERE checklist_items.id = ranked.id
+      AND (checklist_items.position IS NULL OR checklist_items.position = 0);
+  `);
 }
 
 function shouldRetryOpen(error: unknown): boolean {

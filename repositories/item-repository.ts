@@ -6,15 +6,17 @@ export interface ItemInput {
   name: string;
   price?: number | null;
   quantity?: number | null;
+  position?: number | null;
   color?: string;
 }
 
 export async function createItem(db: Database, input: ItemInput): Promise<number> {
   const color = input.color ?? '#2563EB';
   const quantity = normalizeQuantity(input.quantity);
+  const position = input.position ?? (await getNextPosition(db, input.checklistId));
   const result = await db.runAsync(
-    'INSERT INTO checklist_items (checklist_id, name, price, quantity, color, done) VALUES (?, ?, ?, ?, ?, 0);',
-    [input.checklistId, input.name.trim(), normalizePrice(input.price), quantity, color],
+    'INSERT INTO checklist_items (checklist_id, name, price, quantity, position, color, done) VALUES (?, ?, ?, ?, ?, ?, 0);',
+    [input.checklistId, input.name.trim(), normalizePrice(input.price), quantity, position, color],
   );
 
   return Number(result.lastInsertRowId ?? 0);
@@ -37,6 +39,11 @@ export async function updateItem(db: Database, itemId: number, updates: Partial<
   if (updates.quantity !== undefined) {
     fields.push('quantity = ?');
     values.push(normalizeQuantity(updates.quantity));
+  }
+
+  if (updates.position !== undefined) {
+    fields.push('position = ?');
+    values.push(Math.max(1, Math.floor(Number(updates.position))));
   }
 
   if (typeof updates.color === 'string') {
@@ -71,12 +78,34 @@ export async function deleteItemsByChecklist(db: Database, checklistId: number):
   await db.runAsync('DELETE FROM checklist_items WHERE checklist_id = ?;', [checklistId]);
 }
 
+export async function reorderItems(db: Database, checklistId: number, orderedIds: number[]): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    for (let index = 0; index < orderedIds.length; index += 1) {
+      const itemId = orderedIds[index];
+      await db.runAsync('UPDATE checklist_items SET position = ? WHERE id = ? AND checklist_id = ?;', [
+        index + 1,
+        itemId,
+        checklistId,
+      ]);
+    }
+  });
+}
+
 function normalizePrice(value: number | null | undefined): number | null {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return null;
   }
 
   return Math.round(Number(value) * 100) / 100;
+}
+
+async function getNextPosition(db: Database, checklistId: number): Promise<number> {
+  const row = await db.getFirstAsync<{ next: number }>(
+    'SELECT COALESCE(MAX(position), 0) + 1 AS next FROM checklist_items WHERE checklist_id = ?;',
+    [checklistId],
+  );
+
+  return row?.next ?? 1;
 }
 
 function normalizeQuantity(value: number | null | undefined): number {

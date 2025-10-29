@@ -17,6 +17,7 @@ const MIGRATIONS = [
     checklist_id INTEGER NOT NULL REFERENCES checklists(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     price REAL NULL,
+    quantity INTEGER NOT NULL DEFAULT 1,
     color TEXT NOT NULL DEFAULT '#2563EB',
     done INTEGER NOT NULL DEFAULT 0
   );`,
@@ -50,6 +51,7 @@ async function initialize(retries = Platform.OS === 'web' ? 3 : 0): Promise<Data
       await ensureColumn(db, 'checklists', 'color', "TEXT NOT NULL DEFAULT '#2563EB'");
       await ensureColumn(db, 'checklists', 'scheduled_for', 'INTEGER NULL');
       await ensureColumn(db, 'checklist_items', 'color', "TEXT NOT NULL DEFAULT '#2563EB'");
+      await ensureColumn(db, 'checklist_items', 'quantity', 'INTEGER NOT NULL DEFAULT 1');
     });
 
     return db;

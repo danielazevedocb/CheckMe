@@ -30,7 +30,15 @@ export function ChecklistItemRow({
   const iconColor = item.done ? palette.success : accent;
   const primaryTextColor = getReadableTextColor(accent, palette.text, '#FFFFFF');
   const showActions = mode === 'list';
-  const showPrice = mode === 'list' && item.price != null;
+  const quantity = item.quantity ?? 1;
+  const hasPrice = mode === 'list' && item.price != null;
+  const unitPrice = item.price ?? 0;
+  const totalPrice = unitPrice * quantity;
+  const priceText = !hasPrice
+    ? null
+    : quantity > 1
+      ? `${formatCurrency(unitPrice)} x ${quantity} = ${formatCurrency(totalPrice)}`
+      : formatCurrency(unitPrice);
 
   return (
     <View
@@ -54,7 +62,7 @@ export function ChecklistItemRow({
           >
             {item.name}
           </Text>
-          {showPrice ? (
+          {priceText ? (
             <Text
               style={[
                 styles.price,
@@ -64,7 +72,7 @@ export function ChecklistItemRow({
                 },
               ]}
             >
-              {formatCurrency(item.price)}
+              {priceText}
             </Text>
           ) : null}
         </View>

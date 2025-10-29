@@ -35,6 +35,26 @@ export function parseCurrencyInput(value: string): number | null {
   return Math.round(result * 100) / 100;
 }
 
+export function parseQuantityInput(value: string): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const digitsOnly = value.replace(/\D/g, '');
+
+  if (!digitsOnly) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(digitsOnly, 10);
+
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return null;
+  }
+
+  return parsed;
+}
+
 const longDateFormatter = new Intl.DateTimeFormat('pt-BR', {
   day: '2-digit',
   month: 'long',

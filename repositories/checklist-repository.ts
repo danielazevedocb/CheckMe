@@ -17,8 +17,8 @@ const SUMMARY_LIST_QUERY = `
     c.scheduled_for AS scheduled_for,
     COUNT(i.id) AS total_items,
     SUM(CASE WHEN i.done = 1 THEN 1 ELSE 0 END) AS completed_items,
-    SUM(COALESCE(i.price, 0)) AS total_amount,
-    SUM(CASE WHEN i.done = 1 THEN COALESCE(i.price, 0) ELSE 0 END) AS completed_amount
+    SUM(COALESCE(i.price, 0) * COALESCE(i.quantity, 1)) AS total_amount,
+    SUM(CASE WHEN i.done = 1 THEN COALESCE(i.price, 0) * COALESCE(i.quantity, 1) ELSE 0 END) AS completed_amount
   FROM checklists c
   LEFT JOIN checklist_items i ON i.checklist_id = c.id
   WHERE c.title LIKE ?
@@ -36,8 +36,8 @@ const SUMMARY_BY_ID_QUERY = `
     c.scheduled_for AS scheduled_for,
     COUNT(i.id) AS total_items,
     SUM(CASE WHEN i.done = 1 THEN 1 ELSE 0 END) AS completed_items,
-    SUM(COALESCE(i.price, 0)) AS total_amount,
-    SUM(CASE WHEN i.done = 1 THEN COALESCE(i.price, 0) ELSE 0 END) AS completed_amount
+    SUM(COALESCE(i.price, 0) * COALESCE(i.quantity, 1)) AS total_amount,
+    SUM(CASE WHEN i.done = 1 THEN COALESCE(i.price, 0) * COALESCE(i.quantity, 1) ELSE 0 END) AS completed_amount
   FROM checklists c
   LEFT JOIN checklist_items i ON i.checklist_id = c.id
   WHERE c.id = ?
@@ -62,6 +62,7 @@ type ItemRow = {
   checklist_id: number;
   name: string;
   price: number | null;
+  quantity: number | null;
   color: string;
   done: number;
 };
@@ -147,7 +148,7 @@ export async function getChecklistWithItems(
   const summary = mapSummary(summaryRow);
 
   const items = await db.getAllAsync<ItemRow>(
-    `SELECT id, checklist_id, name, price, color, done FROM checklist_items WHERE checklist_id = ? ORDER BY id ASC;`,
+    `SELECT id, checklist_id, name, price, quantity, color, done FROM checklist_items WHERE checklist_id = ? ORDER BY id ASC;`,
     [checklistId],
   );
 
@@ -158,6 +159,7 @@ export async function getChecklistWithItems(
       checklistId: item.checklist_id,
       name: item.name,
       price: item.price,
+      quantity: item.quantity ?? 1,
       color: item.color,
       done: item.done === 1,
     })),

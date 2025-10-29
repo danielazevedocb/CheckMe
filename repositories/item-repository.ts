@@ -5,14 +5,16 @@ export interface ItemInput {
   checklistId: number;
   name: string;
   price?: number | null;
+  quantity?: number | null;
   color?: string;
 }
 
 export async function createItem(db: Database, input: ItemInput): Promise<number> {
   const color = input.color ?? '#2563EB';
+  const quantity = normalizeQuantity(input.quantity);
   const result = await db.runAsync(
-    'INSERT INTO checklist_items (checklist_id, name, price, color, done) VALUES (?, ?, ?, ?, 0);',
-    [input.checklistId, input.name.trim(), normalizePrice(input.price), color],
+    'INSERT INTO checklist_items (checklist_id, name, price, quantity, color, done) VALUES (?, ?, ?, ?, ?, 0);',
+    [input.checklistId, input.name.trim(), normalizePrice(input.price), quantity, color],
   );
 
   return Number(result.lastInsertRowId ?? 0);
@@ -30,6 +32,11 @@ export async function updateItem(db: Database, itemId: number, updates: Partial<
   if (updates.price !== undefined) {
     fields.push('price = ?');
     values.push(normalizePrice(updates.price));
+  }
+
+  if (updates.quantity !== undefined) {
+    fields.push('quantity = ?');
+    values.push(normalizeQuantity(updates.quantity));
   }
 
   if (typeof updates.color === 'string') {
@@ -70,4 +77,13 @@ function normalizePrice(value: number | null | undefined): number | null {
   }
 
   return Math.round(Number(value) * 100) / 100;
+}
+
+function normalizeQuantity(value: number | null | undefined): number {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return 1;
+  }
+
+  const parsed = Math.max(1, Math.floor(Number(value)));
+  return parsed;
 }

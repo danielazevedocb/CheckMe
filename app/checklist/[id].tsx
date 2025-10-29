@@ -41,6 +41,7 @@ import {
   formatFullDate,
   formatProgress,
   parseCurrencyInput,
+  parseQuantityInput,
   startOfDay,
 } from '@/utils/format';
 import { getReadableTextColor } from '@/utils/color';
@@ -51,6 +52,7 @@ interface EditItemState {
   id: number;
   name: string;
   price: string;
+  quantity: string;
 }
 
 type ScheduleState = 'today' | 'upcoming' | 'overdue' | 'default';
@@ -71,6 +73,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   const [isSavingTitle, setSavingTitle] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
+  const [newItemQuantity, setNewItemQuantity] = useState('1');
   const [editingItem, setEditingItem] = useState<EditItemState | null>(null);
   const [savingItem, setSavingItem] = useState(false);
   const [modeChanging, setModeChanging] = useState(false);
@@ -121,10 +124,12 @@ export default function ChecklistDetailsScreen(): JSX.Element {
 
     for (const item of checklist.items) {
       const price = item.price ?? 0;
-      totalAmount += price;
+      const quantity = item.quantity ?? 1;
+      const itemTotal = price * quantity;
+      totalAmount += itemTotal;
       if (item.done) {
         completedItems += 1;
-        completedAmount += price;
+        completedAmount += itemTotal;
       }
     }
 
@@ -186,16 +191,24 @@ export default function ChecklistDetailsScreen(): JSX.Element {
       return;
     }
 
+    const quantityValue = parseQuantityInput(newItemQuantity);
+    if (!quantityValue) {
+      Alert.alert('Informe uma quantidade válida (mínimo 1)');
+      return;
+    }
+
     setSavingItem(true);
     try {
       await createItem(db, {
         checklistId,
         name,
         price: parseCurrencyInput(newItemPrice),
+        quantity: quantityValue,
         color,
       });
       setNewItemName('');
       setNewItemPrice('');
+      setNewItemQuantity('1');
       await refresh();
     } catch (err) {
       Alert.alert('Erro', 'Não foi possível adicionar o item.');
@@ -246,7 +259,12 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   };
 
   const openEditItem = (item: ChecklistItem) => {
-    setEditingItem({ id: item.id, name: item.name, price: item.price?.toString() ?? '' });
+    setEditingItem({
+      id: item.id,
+      name: item.name,
+      price: item.price?.toString() ?? '',
+      quantity: (item.quantity ?? 1).toString(),
+    });
   };
 
   const handleSaveItemEdit = async () => {
@@ -257,10 +275,17 @@ export default function ChecklistDetailsScreen(): JSX.Element {
       return;
     }
 
+    const quantityValue = parseQuantityInput(editingItem.quantity);
+    if (!quantityValue) {
+      Alert.alert('Informe uma quantidade válida (mínimo 1)');
+      return;
+    }
+
     try {
       await updateItem(db, editingItem.id, {
         name,
         price: parseCurrencyInput(editingItem.price),
+        quantity: quantityValue,
       });
       setEditingItem(null);
       await refresh();
@@ -497,6 +522,13 @@ export default function ChecklistDetailsScreen(): JSX.Element {
               keyboardType="decimal-pad"
               placeholder="0,00"
             />
+            <TextField
+              label="Quantidade"
+              value={newItemQuantity}
+              onChangeText={setNewItemQuantity}
+              keyboardType="number-pad"
+              placeholder="1"
+            />
             <Button label="Adicionar item" onPress={handleAddItem} loading={savingItem} />
           </View>
         ) : null}
@@ -517,6 +549,13 @@ export default function ChecklistDetailsScreen(): JSX.Element {
                 value={editingItem?.price ?? ''}
                 onChangeText={(value) => setEditingItem((prev) => (prev ? { ...prev, price: value } : prev))}
                 keyboardType="decimal-pad"
+              />
+              <TextField
+                label="Quantidade"
+                value={editingItem?.quantity ?? ''}
+                onChangeText={(value) => setEditingItem((prev) => (prev ? { ...prev, quantity: value } : prev))}
+                keyboardType="number-pad"
+                placeholder="1"
               />
               <View style={styles.modalActions}>
                 <Button label="Cancelar" variant="ghost" onPress={() => setEditingItem(null)} />

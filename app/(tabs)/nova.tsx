@@ -24,19 +24,21 @@ import { useThemeMode } from '@/contexts/theme-context';
 import { useDatabase } from '@/contexts/database-context';
 import { createChecklist } from '@/repositories/checklist-repository';
 import { createItem } from '@/repositories/item-repository';
-import { formatFullDate, parseCurrencyInput, startOfDay } from '@/utils/format';
+import { formatFullDate, parseCurrencyInput, parseQuantityInput, startOfDay } from '@/utils/format';
 import type { ChecklistMode } from '@/types/checklist';
 
 interface DraftItem {
   id: string;
   name: string;
   price: string;
+  quantity: string;
 }
 
 const createDraftItem = (): DraftItem => ({
   id: `${Date.now()}-${Math.random()}`,
   name: '',
   price: '',
+  quantity: '1',
 });
 
 export default function NovaChecklistScreen(): JSX.Element {
@@ -96,16 +98,40 @@ export default function NovaChecklistScreen(): JSX.Element {
     if (saving) return;
 
     const normalizedTitle = title.trim();
-    const normalizedItems =
-      mode === 'list'
-        ? items
-            .map((item) => ({
-              name: item.name.trim(),
-              price: parseCurrencyInput(item.price),
-              color,
-            }))
-            .filter((item) => item.name.length > 0)
-        : linesToDrafts(textContent).map((item) => ({ name: item.name.trim(), price: null, color }));
+    let normalizedItems: { name: string; price: number | null; quantity: number; color: string }[];
+
+    if (mode === 'list') {
+      const indexedItems = items.map((item, index) => ({
+        name: item.name.trim(),
+        price: parseCurrencyInput(item.price),
+        quantity: parseQuantityInput(item.quantity),
+        color,
+        originalIndex: index,
+      }));
+
+      const filledItems = indexedItems.filter((item) => item.name.length > 0);
+
+      const invalidQuantity = filledItems.find((item) => item.quantity == null);
+      if (invalidQuantity) {
+        Alert.alert(
+          'Quantidade inválida',
+          `Informe uma quantidade válida para o item ${invalidQuantity.originalIndex + 1}.`,
+        );
+        return;
+      }
+
+      normalizedItems = filledItems.map(({ originalIndex, quantity, ...rest }) => ({
+        ...rest,
+        quantity: quantity ?? 1,
+      }));
+    } else {
+      normalizedItems = linesToDrafts(textContent).map((item) => ({
+        name: item.name.trim(),
+        price: null,
+        quantity: 1,
+        color,
+      }));
+    }
 
     if (!normalizedTitle) {
       Alert.alert('Informe um título', 'A checklist precisa de um nome.');
@@ -127,6 +153,7 @@ export default function NovaChecklistScreen(): JSX.Element {
           checklistId,
           name: item.name,
           price: item.price,
+          quantity: item.quantity,
           color: item.color,
         });
       }
@@ -230,6 +257,13 @@ export default function NovaChecklistScreen(): JSX.Element {
                     label="Preço"
                     placeholder="0,00"
                     keyboardType="decimal-pad"
+                  />
+                  <TextField
+                    value={item.quantity}
+                    onChangeText={(value) => handleItemChange(item.id, 'quantity', value)}
+                    label="Quantidade"
+                    placeholder="1"
+                    keyboardType="number-pad"
                   />
                   <Button
                     label="Remover"

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -14,6 +15,7 @@ import DateTimePicker, { type DateTimePickerEvent } from '@react-native-communit
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
+import { useHeaderHeight } from '@react-navigation/elements';
 
 import { ChecklistItemRow } from '@/components/checklist/checklist-item-row';
 import { ThemedText } from '@/components/themed-text';
@@ -58,6 +60,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   const checklistId = Number(id);
   const router = useRouter();
   const navigation = useNavigation();
+  const headerHeight = useHeaderHeight();
   const db = useDatabase();
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
@@ -389,168 +392,176 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   }
 
   return (
-    <ScrollView
-      style={{ backgroundColor: palette.background }}
-      contentContainerStyle={styles.container}
-      accessibilityLabel={`Checklist ${checklist.title}`}>
-      <View style={styles.section}>
-        <TextField
-          label="Título"
-          value={titleDraft}
-          onChangeText={setTitleDraft}
-          onBlur={handleSaveTitle}
-          editable={!isSavingTitle}
-        />
-        <Button label="Salvar título" onPress={handleSaveTitle} loading={isSavingTitle} variant="secondary" />
-      </View>
-
-      <View
-        style={[styles.statsCard, { backgroundColor: palette.surface, borderColor: palette.border }]}
-        accessibilityRole="summary">
-        <View style={styles.statsRow}>
-          <Stat label="Progresso" value={formatProgress(totals.completedItems, totals.totalItems)} />
-          <Stat label="Total" value={formatCurrency(totals.totalAmount)} />
-          <Stat label="✓ Somado" value={formatCurrency(totals.completedAmount)} accent={palette.success} />
-        </View>
-      </View>
-
-      <ScheduleCard
-        palette={palette}
-        scheduledDate={scheduledDate}
-        status={scheduleStatus}
-        onEdit={openSchedulePicker}
-        onClear={() => void commitSchedule(null)}
-        loading={updatingSchedule}
-        color={color}
-      />
-
-      <ColorSelector
-        currentColor={color}
-        onSelect={handleColorChange}
-        disabled={updatingColor}
-        label="Cor da checklist"
-      />
-
-      <View style={[styles.modeSelector, { backgroundColor: palette.surface }]}
-        accessibilityRole="radiogroup">
-        <ModeToggle
-          label="Lista"
-          selected={checklist.mode === 'list'}
-          onPress={() => handleModeChange('list')}
-          palette={palette}
-          disabled={modeChanging}
-        />
-        <ModeToggle
-          label="Texto"
-          selected={checklist.mode === 'text'}
-          onPress={() => handleModeChange('text')}
-          palette={palette}
-          disabled={modeChanging}
-        />
-      </View>
-
-      {checklist.mode === 'text' ? (
-        <View style={[styles.section, styles.textModeInfo, { borderColor: palette.border }]}>
-          <ThemedText style={{ color: palette.textMuted }}>
-            Cada linha do texto vira um item marcável. Use o botão abaixo para editar todo o conteúdo.
-          </ThemedText>
-          <Button label="Editar texto" variant="secondary" onPress={() => setTextEditorVisible(true)} />
-        </View>
-      ) : null}
-
-      <View style={styles.section}>
-        {checklist.items.map((item) => (
-          <ChecklistItemRow
-            key={item.id}
-            item={item}
-            onToggle={() => handleToggleItem(item)}
-            onEdit={() => openEditItem(item)}
-            onDelete={() => handleDeleteItem(item)}
-            mode={checklist.mode}
-          />
-        ))}
-      </View>
-
-      {checklist.mode === 'list' ? (
-        <View style={[styles.section, styles.newItemSection, { borderColor: palette.border }]}
-          accessibilityLabel="Adicionar novo item">
+    <KeyboardAvoidingView
+      style={[styles.screen, { backgroundColor: palette.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={headerHeight}>
+      <ScrollView
+        style={styles.flex}
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        contentContainerStyle={styles.container}
+        accessibilityLabel={`Checklist ${checklist.title}`}>
+        <View style={styles.section}>
           <TextField
-            label="Novo item"
-            value={newItemName}
-            onChangeText={setNewItemName}
-            placeholder="Nome do item"
+            label="Título"
+            value={titleDraft}
+            onChangeText={setTitleDraft}
+            onBlur={handleSaveTitle}
+            editable={!isSavingTitle}
           />
-          <TextField
-            label="Preço"
-            value={newItemPrice}
-            onChangeText={setNewItemPrice}
-            keyboardType="decimal-pad"
-            placeholder="0,00"
-          />
-          <Button label="Adicionar item" onPress={handleAddItem} loading={savingItem} />
+          <Button label="Salvar título" onPress={handleSaveTitle} loading={isSavingTitle} variant="secondary" />
         </View>
-      ) : null}
 
-      <Button label="Remover checklist" variant="danger" onPress={handleDeleteChecklist} />
+        <View
+          style={[styles.statsCard, { backgroundColor: palette.surface, borderColor: palette.border }]}
+          accessibilityRole="summary">
+          <View style={styles.statsRow}>
+            <Stat label="Progresso" value={formatProgress(totals.completedItems, totals.totalItems)} />
+            <Stat label="Total" value={formatCurrency(totals.totalAmount)} />
+            <Stat label="✓ Somado" value={formatCurrency(totals.completedAmount)} accent={palette.success} />
+          </View>
+        </View>
 
-      <Modal transparent visible={Boolean(editingItem)} animationType="slide" onRequestClose={() => setEditingItem(null)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: palette.surface }]}
-            accessibilityLabel="Editar item">
+        <ScheduleCard
+          palette={palette}
+          scheduledDate={scheduledDate}
+          status={scheduleStatus}
+          onEdit={openSchedulePicker}
+          onClear={() => void commitSchedule(null)}
+          loading={updatingSchedule}
+          color={color}
+        />
+
+        <ColorSelector
+          currentColor={color}
+          onSelect={handleColorChange}
+          disabled={updatingColor}
+          label="Cor da checklist"
+        />
+
+        <View style={[styles.modeSelector, { backgroundColor: palette.surface }]}
+          accessibilityRole="radiogroup">
+          <ModeToggle
+            label="Lista"
+            selected={checklist.mode === 'list'}
+            onPress={() => handleModeChange('list')}
+            palette={palette}
+            disabled={modeChanging}
+          />
+          <ModeToggle
+            label="Texto"
+            selected={checklist.mode === 'text'}
+            onPress={() => handleModeChange('text')}
+            palette={palette}
+            disabled={modeChanging}
+          />
+        </View>
+
+        {checklist.mode === 'text' ? (
+          <View style={[styles.section, styles.textModeInfo, { borderColor: palette.border }]}>
+            <ThemedText style={{ color: palette.textMuted }}>
+              Cada linha do texto vira um item marcável. Use o botão abaixo para editar todo o conteúdo.
+            </ThemedText>
+            <Button label="Editar texto" variant="secondary" onPress={() => setTextEditorVisible(true)} />
+          </View>
+        ) : null}
+
+        <View style={styles.section}>
+          {checklist.items.map((item) => (
+            <ChecklistItemRow
+              key={item.id}
+              item={item}
+              onToggle={() => handleToggleItem(item)}
+              onEdit={() => openEditItem(item)}
+              onDelete={() => handleDeleteItem(item)}
+              mode={checklist.mode}
+            />
+          ))}
+        </View>
+
+        {checklist.mode === 'list' ? (
+          <View style={[styles.section, styles.newItemSection, { borderColor: palette.border }]}
+            accessibilityLabel="Adicionar novo item">
             <TextField
-              label="Nome do item"
-              value={editingItem?.name ?? ''}
-              onChangeText={(value) => setEditingItem((prev) => (prev ? { ...prev, name: value } : prev))}
+              label="Novo item"
+              value={newItemName}
+              onChangeText={setNewItemName}
+              placeholder="Nome do item"
             />
             <TextField
               label="Preço"
-              value={editingItem?.price ?? ''}
-              onChangeText={(value) => setEditingItem((prev) => (prev ? { ...prev, price: value } : prev))}
+              value={newItemPrice}
+              onChangeText={setNewItemPrice}
               keyboardType="decimal-pad"
+              placeholder="0,00"
             />
-            <View style={styles.modalActions}>
-              <Button label="Cancelar" variant="ghost" onPress={() => setEditingItem(null)} />
-              <Button label="Salvar" onPress={handleSaveItemEdit} />
+            <Button label="Adicionar item" onPress={handleAddItem} loading={savingItem} />
+          </View>
+        ) : null}
+
+        <Button label="Remover checklist" variant="danger" onPress={handleDeleteChecklist} />
+
+        <Modal transparent visible={Boolean(editingItem)} animationType="slide" onRequestClose={() => setEditingItem(null)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: palette.surface }]}
+              accessibilityLabel="Editar item">
+              <TextField
+                label="Nome do item"
+                value={editingItem?.name ?? ''}
+                onChangeText={(value) => setEditingItem((prev) => (prev ? { ...prev, name: value } : prev))}
+              />
+              <TextField
+                label="Preço"
+                value={editingItem?.price ?? ''}
+                onChangeText={(value) => setEditingItem((prev) => (prev ? { ...prev, price: value } : prev))}
+                keyboardType="decimal-pad"
+              />
+              <View style={styles.modalActions}>
+                <Button label="Cancelar" variant="ghost" onPress={() => setEditingItem(null)} />
+                <Button label="Salvar" onPress={handleSaveItemEdit} />
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
 
-      <Modal
-        transparent
-        visible={textEditorVisible}
-        animationType="slide"
-        onRequestClose={() => setTextEditorVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: palette.surface }]}
-            accessibilityLabel="Editar texto da checklist">
-            <TextField
-              label="Itens (um por linha)"
-              value={textDraft}
-              onChangeText={setTextDraft}
-              multiline
-              numberOfLines={10}
-              helperText="Linhas vazias serão ignoradas."
-            />
-            <View style={styles.modalActions}>
-              <Button label="Cancelar" variant="ghost" onPress={() => setTextEditorVisible(false)} />
-              <Button label="Salvar" onPress={handleSyncTextItems} loading={syncingText} />
+        <Modal
+          transparent
+          visible={textEditorVisible}
+          animationType="slide"
+          onRequestClose={() => setTextEditorVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: palette.surface }]}
+              accessibilityLabel="Editar texto da checklist">
+              <TextField
+                label="Itens (um por linha)"
+                value={textDraft}
+                onChangeText={setTextDraft}
+                multiline
+                numberOfLines={10}
+                helperText="Linhas vazias serão ignoradas."
+              />
+              <View style={styles.modalActions}>
+                <Button label="Cancelar" variant="ghost" onPress={() => setTextEditorVisible(false)} />
+                <Button label="Salvar" onPress={handleSyncTextItems} loading={syncingText} />
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
 
-      <SchedulePickerModal
-        visible={showDatePicker}
-        initialDate={pickerDate}
-        onCancel={() => setShowDatePicker(false)}
-        onConfirm={async (date) => {
-          setShowDatePicker(false);
-          await commitSchedule(date);
-        }}
-        palette={palette}
-      />
-    </ScrollView>
+        <SchedulePickerModal
+          visible={showDatePicker}
+          initialDate={pickerDate}
+          onCancel={() => setShowDatePicker(false)}
+          onConfirm={async (date) => {
+            setShowDatePicker(false);
+            await commitSchedule(date);
+          }}
+          palette={palette}
+        />
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -806,6 +817,12 @@ function itemsToText(items: ChecklistItem[]): string {
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  flex: {
+    flex: 1,
+  },
   container: {
     padding: 16,
     gap: 24,

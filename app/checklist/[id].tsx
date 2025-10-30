@@ -2,11 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerAndroid, type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
     FlatList,
+    Keyboard,
     KeyboardAvoidingView,
     Modal,
     Platform,
@@ -87,6 +88,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   const [updatingColor, setUpdatingColor] = useState(false);
   const [itemsOrder, setItemsOrder] = useState<ChecklistItem[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
     if (checklist) {
@@ -121,6 +123,19 @@ export default function ChecklistDetailsScreen(): JSX.Element {
       setItemsOrder([]);
     }
   }, [checklist]);
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      // Scroll to end when keyboard shows to bring input fields into view
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    });
+
+    return () => {
+      keyboardDidShowListener.remove();
+    };
+  }, []);
 
   const totals = useMemo(() => {
     if (!checklist) {
@@ -578,6 +593,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
 
   const renderNativeList = () => (
     <FlatList
+      ref={flatListRef}
       style={styles.flex}
       contentContainerStyle={styles.listContent}
       data={itemsOrder}

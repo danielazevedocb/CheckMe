@@ -1,53 +1,51 @@
+import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker, { DateTimePickerAndroid, type DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { useHeaderHeight } from '@react-navigation/elements';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
 } from 'react-native';
-import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
-import { Ionicons } from '@expo/vector-icons';
-import DraggableFlatList, { type RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
-import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
-import { useHeaderHeight } from '@react-navigation/elements';
 
 import { ChecklistItemRow } from '@/components/checklist/checklist-item-row';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { TextField } from '@/components/ui/text-field';
-import { Colors } from '@/constants/theme';
 import { CHECKLIST_COLORS, DEFAULT_CHECKLIST_COLOR } from '@/constants/checklist-colors';
+import { Colors } from '@/constants/theme';
+import { useDatabase } from '@/contexts/database-context';
 import { useThemeMode } from '@/contexts/theme-context';
 import { useChecklist } from '@/hooks/use-checklist';
-import {
-  deleteChecklist,
-  updateChecklistMode,
-  updateChecklistColor,
-  updateChecklistSchedule,
-  updateChecklistTitle,
-} from '@/repositories/checklist-repository';
-import { createItem, deleteItem, reorderItems, setItemDone, updateItem } from '@/repositories/item-repository';
-import type { ChecklistItem, ChecklistMode } from '@/types/checklist';
-import {
-  differenceInDays,
-  formatCurrency,
-  formatFullDate,
-  formatProgress,
-  parseCurrencyInput,
-  parseQuantityInput,
-  startOfDay,
-} from '@/utils/format';
-import { getReadableTextColor } from '@/utils/color';
-import { useDatabase } from '@/contexts/database-context';
 import type { Database } from '@/lib/database';
+import {
+    deleteChecklist,
+    updateChecklistColor,
+    updateChecklistMode,
+    updateChecklistSchedule,
+    updateChecklistTitle,
+} from '@/repositories/checklist-repository';
+import { createItem, deleteItem, setItemDone, updateItem } from '@/repositories/item-repository';
+import type { ChecklistItem, ChecklistMode } from '@/types/checklist';
+import { getReadableTextColor } from '@/utils/color';
+import {
+    differenceInDays,
+    formatCurrency,
+    formatFullDate,
+    formatProgress,
+    parseCurrencyInput,
+    parseQuantityInput,
+    startOfDay,
+} from '@/utils/format';
 
 interface EditItemState {
   id: number;
@@ -88,6 +86,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   const [color, setColor] = useState<string>(DEFAULT_CHECKLIST_COLOR);
   const [updatingColor, setUpdatingColor] = useState(false);
   const [itemsOrder, setItemsOrder] = useState<ChecklistItem[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (checklist) {
@@ -117,6 +116,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   useEffect(() => {
     if (checklist) {
       setItemsOrder(checklist.items);
+      setRefreshKey((prev) => prev + 1);
     } else {
       setItemsOrder([]);
     }
@@ -427,7 +427,6 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   }
 
   const isListMode = checklist.mode === 'list';
-  const isWeb = Platform.OS === 'web';
 
   const renderHeader = () => (
     <View style={styles.header}>
@@ -531,87 +530,25 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     </View>
   );
 
-  const renderChecklistItem = ({ item, drag, isActive }: RenderItemParams<ChecklistItem>) => (
-    <ScaleDecorator>
-      <ChecklistItemRow
-        item={item}
-        onToggle={() => handleToggleItem(item)}
-        onEdit={() => openEditItem(item)}
-        onDelete={() => handleDeleteItem(item)}
-        mode={checklist.mode}
-        dragEnabled={!isWeb && isListMode && itemsOrder.length > 1}
-        onDrag={!isWeb && isListMode && itemsOrder.length > 1 ? drag : undefined}
-        isDragging={isActive}
-      />
-    </ScaleDecorator>
-  );
-
-  const handleDragEnd = async ({ data }: { data: ChecklistItem[] }) => {
-    if (!isListMode) {
-      setItemsOrder(checklist.items);
-      return;
-    }
-
-    setItemsOrder(data);
-
-    const newOrderIds = data.map((item) => item.id);
-    const currentIds = checklist.items.map((item) => item.id);
-    const unchanged =
-      newOrderIds.length === currentIds.length && newOrderIds.every((id, index) => id === currentIds[index]);
-
-    if (unchanged) {
-      return;
-    }
-
-    try {
-      await reorderItems(db, checklist.id, newOrderIds);
-      await refresh();
-    } catch (err) {
-      Alert.alert('Erro', 'Não foi possível reordenar os itens.');
-      console.error(err);
-      setItemsOrder(checklist.items);
-    }
-  };
-
-  const renderWebList = () => (
-    <ScrollView
-      style={styles.flex}
-      contentContainerStyle={styles.scrollContent}
-      keyboardShouldPersistTaps="handled"
-      accessibilityLabel={`Checklist ${checklist.title}`}>
-      {renderHeader()}
-      <View style={styles.itemsWrapper}>
-        {itemsOrder.map((item) => (
-          <ChecklistItemRow
-            key={item.id}
-            item={item}
-            onToggle={() => handleToggleItem(item)}
-            onEdit={() => openEditItem(item)}
-            onDelete={() => handleDeleteItem(item)}
-            mode={checklist.mode}
-            dragEnabled={false}
-          />
-        ))}
-        {itemsOrder.length === 0 ? (
-          <View style={styles.emptyList}>
-            <ThemedText style={{ color: palette.textMuted }}>Nenhum item adicionado ainda.</ThemedText>
-          </View>
-        ) : null}
-      </View>
-      {renderFooter()}
-    </ScrollView>
+  const renderChecklistItem = ({ item }: { item: ChecklistItem }) => (
+    <ChecklistItemRow
+      item={item}
+      onToggle={() => handleToggleItem(item)}
+      onEdit={() => openEditItem(item)}
+      onDelete={() => handleDeleteItem(item)}
+      mode={checklist.mode}
+      dragEnabled={false}
+    />
   );
 
   const renderNativeList = () => (
-    <DraggableFlatList
+    <FlatList
       style={styles.flex}
       contentContainerStyle={styles.listContent}
       data={itemsOrder}
+      extraData={refreshKey}
       keyExtractor={(item) => item.id.toString()}
       renderItem={renderChecklistItem}
-      onDragEnd={handleDragEnd}
-      dragEnabled={isListMode && itemsOrder.length > 1}
-      activationDistance={12}
       keyboardShouldPersistTaps="handled"
       ListHeaderComponent={renderHeader}
       ListFooterComponent={renderFooter}
@@ -621,6 +558,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
         </View>
       }
       accessibilityLabel={`Checklist ${checklist.title}`}
+      showsVerticalScrollIndicator={false}
     />
   );
 
@@ -629,7 +567,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
       style={[styles.screen, { backgroundColor: palette.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={headerHeight}>
-      {isWeb ? renderWebList() : renderNativeList()}
+      {renderNativeList()}
 
       <Modal transparent visible={Boolean(editingItem)} animationType="slide" onRequestClose={() => setEditingItem(null)}>
         <View style={styles.modalOverlay}>
@@ -972,15 +910,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 48,
     paddingTop: 16,
-    gap: 16,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 48,
-    paddingTop: 16,
-    gap: 24,
-  },
-  itemsWrapper: {
     gap: 16,
   },
   flex: {

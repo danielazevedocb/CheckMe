@@ -47,7 +47,8 @@ async function initialize(retries = Platform.OS === 'web' ? 3 : 0): Promise<Data
       for (const statement of MIGRATIONS) {
         await db.execAsync(statement);
       }
-
+      // Note: ensureColumn is kept for existing databases without these columns
+      // The MIGRATIONS above already include all columns, so ensureColumn only runs on old DBs
       await ensureColumn(db, 'checklists', 'mode', "TEXT NOT NULL DEFAULT 'list'");
       await ensureColumn(db, 'checklists', 'color', "TEXT NOT NULL DEFAULT '#2563EB'");
       await ensureColumn(db, 'checklists', 'scheduled_for', 'INTEGER NULL');
@@ -78,19 +79,19 @@ async function ensureColumn(db: Database, table: string, column: string, definit
 }
 
 async function normalizeItemPositions(db: Database) {
-  await db.execAsync(`
-    WITH ranked AS (
-      SELECT
-        id,
-        ROW_NUMBER() OVER (PARTITION BY checklist_id ORDER BY position, id) AS rn
-      FROM checklist_items
-    )
-    UPDATE checklist_items
-    SET position = ranked.rn
-    FROM ranked
-    WHERE checklist_items.id = ranked.id
-      AND (checklist_items.position IS NULL OR checklist_items.position = 0);
-  `);
+  // SQLite doesn't support UPDATE ... FROM, so we use a subquery approach
+  const items = await db.getAllAsync<{ id: number; checklist_id: number }>(
+    'SELECT id, checklist_id FROM checklist_items WHERE position IS NULL OR position = 0',
+  );
+
+  for (const item of items) {
+    const row = await db.getFirstAsync<{ maxPosition: number }>(
+      'SELECT COALESCE(MAX(position), 0) AS maxPosition FROM checklist_items WHERE checklist_id = ?',
+      [item.checklist_id],
+    );
+    const newPosition = (row?.maxPosition ?? 0) + 1;
+    await db.runAsync('UPDATE checklist_items SET position = ? WHERE id = ?', [newPosition, item.id]);
+  }
 }
 
 function shouldRetryOpen(error: unknown): boolean {

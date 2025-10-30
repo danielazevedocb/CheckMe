@@ -9,7 +9,10 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "generate:assets": "node ./scripts/generate-assets.mjs"
+    "generate:assets": "node ./scripts/generate-assets.mjs",
+    "bump-version": "node ./scripts/bump-version.mjs",
+    "build:preview": "npm run bump-version && eas build --profile preview --platform android",
+    "build:production": "npm run bump-version && eas build --profile production --platform android"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

@@ -34,7 +34,7 @@ import {
     updateChecklistSchedule,
     updateChecklistTitle,
 } from '@/repositories/checklist-repository';
-import { createItem, deleteItem, setItemDone, updateItem } from '@/repositories/item-repository';
+import { createItem, deleteItem, reorderItems, setItemDone, updateItem } from '@/repositories/item-repository';
 import type { ChecklistItem, ChecklistMode } from '@/types/checklist';
 import { getReadableTextColor } from '@/utils/color';
 import {
@@ -245,6 +245,32 @@ export default function ChecklistDetailsScreen(): JSX.Element {
         },
       },
     ]);
+  };
+
+  const handleMoveItem = async (itemId: number, direction: 'up' | 'down') => {
+    if (!checklist) return;
+    
+    const currentIndex = itemsOrder.findIndex((item) => item.id === itemId);
+    if (currentIndex === -1) return;
+
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (newIndex < 0 || newIndex >= itemsOrder.length) return;
+
+    const newOrder = [...itemsOrder];
+    const [movedItem] = newOrder.splice(currentIndex, 1);
+    newOrder.splice(newIndex, 0, movedItem);
+
+    setItemsOrder(newOrder);
+
+    try {
+      const newOrderIds = newOrder.map((item) => item.id);
+      await reorderItems(db, checklist.id, newOrderIds);
+      await refresh();
+    } catch (err) {
+      Alert.alert('Erro', 'Não foi possível reordenar os itens.');
+      console.error(err);
+      setItemsOrder(itemsOrder);
+    }
   };
 
   const handleDeleteChecklist = () => {
@@ -530,16 +556,25 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     </View>
   );
 
-  const renderChecklistItem = ({ item }: { item: ChecklistItem }) => (
-    <ChecklistItemRow
-      item={item}
-      onToggle={() => handleToggleItem(item)}
-      onEdit={() => openEditItem(item)}
-      onDelete={() => handleDeleteItem(item)}
-      mode={checklist.mode}
-      dragEnabled={false}
-    />
-  );
+  const renderChecklistItem = ({ item, index }: { item: ChecklistItem; index: number }) => {
+    const canMoveUp = index > 0;
+    const canMoveDown = index < itemsOrder.length - 1;
+
+    return (
+      <ChecklistItemRow
+        item={item}
+        onToggle={() => handleToggleItem(item)}
+        onEdit={() => openEditItem(item)}
+        onDelete={() => handleDeleteItem(item)}
+        mode={checklist.mode}
+        dragEnabled={false}
+        onMoveUp={canMoveUp ? () => handleMoveItem(item.id, 'up') : undefined}
+        onMoveDown={canMoveDown ? () => handleMoveItem(item.id, 'down') : undefined}
+        canMoveUp={canMoveUp}
+        canMoveDown={canMoveDown}
+      />
+    );
+  };
 
   const renderNativeList = () => (
     <FlatList

@@ -16,6 +16,10 @@ interface ChecklistItemRowProps {
   onDrag?: () => void;
   dragEnabled?: boolean;
   isDragging?: boolean;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
 }
 
 export function ChecklistItemRow({
@@ -27,6 +31,10 @@ export function ChecklistItemRow({
   onDrag,
   dragEnabled = false,
   isDragging = false,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp = false,
+  canMoveDown = false,
 }: ChecklistItemRowProps): JSX.Element {
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
@@ -89,6 +97,24 @@ export function ChecklistItemRow({
       </Pressable>
       {showActions ? (
         <View style={styles.actions}>
+          <View style={styles.moveButtons}>
+            <Pressable 
+              onPress={onMoveUp} 
+              disabled={!canMoveUp || !onMoveUp}
+              style={[styles.moveButton, !canMoveUp && styles.moveButtonDisabled]} 
+              accessibilityRole="button"
+              accessibilityLabel="Mover para cima">
+              <Ionicons name="chevron-up" size={20} color={canMoveUp ? accent : palette.textMuted} />
+            </Pressable>
+            <Pressable 
+              onPress={onMoveDown} 
+              disabled={!canMoveDown || !onMoveDown}
+              style={[styles.moveButton, !canMoveDown && styles.moveButtonDisabled]} 
+              accessibilityRole="button"
+              accessibilityLabel="Mover para baixo">
+              <Ionicons name="chevron-down" size={20} color={canMoveDown ? accent : palette.textMuted} />
+            </Pressable>
+          </View>
           {dragEnabled ? (
             <Pressable
               onLongPress={onDrag}
@@ -140,11 +166,21 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     gap: 12,
     paddingHorizontal: 16,
     paddingBottom: 12,
-    alignItems: 'center',
+  },
+  moveButtons: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  moveButton: {
+    padding: 4,
+  },
+  moveButtonDisabled: {
+    opacity: 0.3,
   },
   actionButton: {
     paddingVertical: 4,

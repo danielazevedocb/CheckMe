@@ -8,29 +8,17 @@
       "developmentClient": true,
       "distribution": "internal",
       "android": {
-        "buildType": "apk",
-        "applicationId": "com.danielazevedocb.CheckMe"
+        "buildType": "apk"
       }
     },
     "preview": {
       "distribution": "internal",
       "android": {
-        "buildType": "apk",
-        "applicationId": "com.danielazevedocb.CheckMe"
-      },
-      "ios": {
-        "bundleIdentifier": "com.danielazevedocb.CheckMe"
+        "buildType": "apk"
       }
     },
     "production": {
-      "autoIncrement": true,
-      "android": {
-        "buildType": "apk",
-        "applicationId": "com.danielazevedocb.CheckMe"
-      },
-      "ios": {
-        "bundleIdentifier": "com.danielazevedocb.CheckMe"
-      }
+      "autoIncrement": true
     }
   },
   "submit": {

@@ -170,10 +170,7 @@ function TaskItemComponent({
         styles.container,
         { backgroundColor: backgroundTint, borderColor: accent, opacity: isDragging ? 0.85 : 1 },
       ]}
-      accessible
-      accessibilityRole="button"
       accessibilityLabel={`Tarefa ${title}`}
-      accessibilityHint="Toque para alternar o status"
     >
       <Pressable style={styles.mainRow} onPress={handleTogglePress}>
         <Ionicons name={iconName} size={26} color={iconColor} />

@@ -26,6 +26,7 @@ import { TaskItem } from '@/components/checklist/task-item';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { FloatingActionButton } from '@/components/ui/fab';
 import { Colors } from '@/constants/theme';
 import { useDatabase } from '@/contexts/database-context';
 import { useThemeMode } from '@/contexts/theme-context';
@@ -437,25 +438,36 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     </View>
   );
 
-  const listEmptyComponent = (
-    <View style={styles.emptyList}>
-      <ThemedText style={{ color: palette.textMuted }}>
-        {priorityFilter === 'ALL'
-          ? 'Nenhuma tarefa ainda. Adicione a primeira abaixo.'
-          : 'Nenhuma tarefa com esta prioridade.'}
-      </ThemedText>
-    </View>
-  );
+  const listEmptyComponent =
+    priorityFilter === 'ALL' ? (
+      <EmptyState
+        title="Nenhuma tarefa ainda"
+        description="Adicione a primeira tarefa para começar."
+        actionLabel="Adicionar tarefa"
+        onPressAction={() => setTaskModal({ mode: 'create' })}
+      />
+    ) : (
+      <EmptyState
+        title="Nenhuma tarefa neste filtro"
+        description='Altere o filtro para "Todas" ou crie uma tarefa com esta prioridade.'
+      />
+    );
+
+  const listContentStyle = [
+    styles.listContent,
+    itemsOrder.length === 0 ? styles.listContentEmpty : null,
+  ];
 
   return (
     <KeyboardAvoidingView
       style={[styles.screen, { backgroundColor: palette.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={headerHeight}>
+      // Android/web: behavior "height" collapses the list body to zero when the keyboard is hidden.
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}>
       <DraggableFlatList
         ref={draggableListRef}
         style={styles.flex}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={listContentStyle}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={renderHeader}
         ListFooterComponent={renderFooter}
@@ -470,6 +482,13 @@ export default function ChecklistDetailsScreen(): JSX.Element {
         onDragEnd={dragEnabled ? handleDragEnd : undefined}
         activationDistance={dragEnabled ? 8 : 9999}
       />
+
+      {taskModal === null ? (
+        <FloatingActionButton
+          accessibilityLabel="Adicionar tarefa"
+          onPress={() => setTaskModal({ mode: 'create' })}
+        />
+      ) : null}
 
       <Modal
         transparent
@@ -507,9 +526,12 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingBottom: 48,
+    paddingBottom: 96,
     paddingTop: 16,
     gap: 16,
+  },
+  listContentEmpty: {
+    flexGrow: 1,
   },
   centered: {
     flex: 1,
@@ -556,10 +578,6 @@ const styles = StyleSheet.create({
   footer: {
     gap: 12,
     marginTop: 8,
-  },
-  emptyList: {
-    alignItems: 'center',
-    paddingVertical: 16,
   },
   headerAction: {
     paddingHorizontal: 16,

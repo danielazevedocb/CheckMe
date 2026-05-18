@@ -38,6 +38,7 @@ export function useDailyPlanner(date?: number): UseDailyPlannerResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const noteDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingNoteRef = useRef<string | null>(null);
   const plannerRef = useRef(planner);
 
   useEffect(() => {
@@ -73,9 +74,17 @@ export function useDailyPlanner(date?: number): UseDailyPlannerResult {
     return () => {
       if (noteDebounceRef.current) {
         clearTimeout(noteDebounceRef.current);
+        noteDebounceRef.current = null;
+      }
+
+      const pendingNote = pendingNoteRef.current;
+      const current = plannerRef.current;
+
+      if (pendingNote !== null && current) {
+        void updatePlannerNote(db, current.id, pendingNote).catch(() => {});
       }
     };
-  }, []);
+  }, [db]);
 
   const addItem = useCallback(
     async (section: PlannerSection, name: string): Promise<boolean> => {
@@ -120,19 +129,42 @@ export function useDailyPlanner(date?: number): UseDailyPlannerResult {
 
   const removeItem = useCallback(
     async (itemId: number) => {
+      const current = plannerRef.current;
+      if (!current) {
+        return;
+      }
+
+      const previousItems = current.items;
+      const itemExists = previousItems.some((item) => item.id === itemId);
+
+      if (!itemExists) {
+        return;
+      }
+
+      setPlanner((prev) =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.filter((item) => item.id !== itemId),
+            }
+          : prev,
+      );
+
       try {
         await deletePlannerItem(db, itemId);
-        await load();
+        setError(null);
       } catch (err) {
+        setPlanner((prev) => (prev ? { ...prev, items: previousItems } : prev));
         setError(err as Error);
         throw err;
       }
     },
-    [db, load],
+    [db],
   );
 
   const updateNote = useCallback(
     (note: string) => {
+      pendingNoteRef.current = note;
       setPlanner((prev) => (prev ? { ...prev, note } : prev));
 
       if (noteDebounceRef.current) {
@@ -140,6 +172,9 @@ export function useDailyPlanner(date?: number): UseDailyPlannerResult {
       }
 
       noteDebounceRef.current = setTimeout(() => {
+        noteDebounceRef.current = null;
+        pendingNoteRef.current = null;
+
         void (async () => {
           const current = plannerRef.current;
           if (!current) {

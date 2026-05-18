@@ -1,259 +1,120 @@
-import { useCallback, useEffect, useMemo } from 'react';
-import {
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
-import { PlannerNote } from '@/components/planner/planner-note';
-import { PlannerSectionBlock } from '@/components/planner/planner-section';
-import { EmptyState } from '@/components/ui/empty-state';
-import { Skeleton } from '@/components/ui/skeleton';
+import { PlannerDayView } from '@/components/planner/planner-day-view';
+import { PlannerHistoryList } from '@/components/planner/planner-history-list';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useThemeMode } from '@/contexts/theme-context';
-import { useDailyPlanner } from '@/hooks/use-daily-planner';
-import { useReducedMotion } from '@/hooks/use-reduced-motion';
-import type { PlannerItem, PlannerSection } from '@/types/planner';
-import { PLANNER_SECTIONS } from '@/types/planner';
-import { formatFullDate, startOfDay } from '@/utils/format';
-
-function getItemsBySection(items: PlannerItem[], section: PlannerSection): PlannerItem[] {
-  return items
-    .filter((item) => item.section === section)
-    .sort((a, b) => a.position - b.position);
-}
-
-function getDayProgress(items: PlannerItem[]): {
-  completed: number;
-  total: number;
-  ratio: number;
-} {
-  const relevant = items.filter(
-    (item) => item.section === 'main' || item.section === 'priorities',
-  );
-  const total = relevant.length;
-  const completed = relevant.filter((item) => item.done).length;
-  return {
-    completed,
-    total,
-    ratio: total === 0 ? 0 : completed / total,
-  };
-}
-
-function DayProgressBar({ completed, total, ratio }: { completed: number; total: number; ratio: number }) {
-  const { resolved } = useThemeMode();
-  const palette = Colors[resolved];
-  const reduceMotion = useReducedMotion();
-  const progress = useSharedValue(ratio);
-
-  useEffect(() => {
-    progress.value = reduceMotion ? ratio : withTiming(ratio, { duration: 300 });
-  }, [progress, ratio, reduceMotion]);
-
-  const fillStyle = useAnimatedStyle(() => ({
-    width: `${Math.min(100, Math.max(0, progress.value * 100))}%`,
-  }));
-
-  return (
-    <View style={styles.progressBlock} accessibilityLabel="Progresso do dia">
-      <ThemedText type="default" style={[styles.progressText, { color: palette.textMuted }]}>
-        {completed} de {total} tarefas concluídas
-      </ThemedText>
-      <View style={[styles.progressTrack, { backgroundColor: palette.border }]}>
-        <Animated.View
-          style={[
-            styles.progressFill,
-            { backgroundColor: palette.primary },
-            fillStyle,
-          ]}
-        />
-      </View>
-    </View>
-  );
-}
-
-function PlannerSectionSkeleton(): JSX.Element {
-  const reduceMotion = useReducedMotion();
-
-  return (
-    <View style={styles.sectionSkeleton}>
-      <Skeleton height={18} width="45%" animated={!reduceMotion} />
-      <Skeleton height={44} animated={!reduceMotion} />
-      <Skeleton height={44} animated={!reduceMotion} />
-      <Skeleton height={48} animated={!reduceMotion} />
-    </View>
-  );
-}
+import { startOfDay } from '@/utils/format';
 
 export default function HojeScreen(): JSX.Element {
+  const router = useRouter();
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
-  const insets = useSafeAreaInsets();
   const today = useMemo(() => startOfDay(new Date()).getTime(), []);
-  const {
-    planner,
-    loading,
-    error,
-    refresh,
-    addItem,
-    toggleItem,
-    removeItem,
-    updateNote,
-  } = useDailyPlanner(today);
+  const [historyVisible, setHistoryVisible] = useState(false);
 
-  const items = planner?.items ?? [];
-  const dayProgress = useMemo(() => getDayProgress(items), [items]);
-  const noteValue = planner?.note ?? '';
+  const openHistory = useCallback(() => {
+    setHistoryVisible(true);
+  }, []);
 
-  const handleAdd = useCallback(
-    (section: PlannerSection) => (name: string) => addItem(section, name),
-    [addItem],
-  );
+  const closeHistory = useCallback(() => {
+    setHistoryVisible(false);
+  }, []);
 
-  const handleToggle = useCallback(
-    (itemId: number, done: boolean) => {
-      void toggleItem(itemId, done);
+  const handleSelectDate = useCallback(
+    (date: number) => {
+      setHistoryVisible(false);
+      if (date === today) {
+        return;
+      }
+      router.push(`/planner/${date}`);
     },
-    [toggleItem],
+    [router, today],
   );
 
-  const handleDelete = useCallback(
-    (itemId: number) => {
-      void removeItem(itemId);
-    },
-    [removeItem],
+  const historyButton = (
+    <Pressable
+      onPress={openHistory}
+      style={({ pressed }) => [
+        styles.historyButton,
+        { backgroundColor: palette.surfaceMuted, opacity: pressed ? 0.85 : 1 },
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel="Ver histórico de planners"
+      hitSlop={8}
+    >
+      <Ionicons name="calendar-outline" size={22} color={palette.text} />
+    </Pressable>
   );
-
-  const headerDate = formatFullDate(today);
-
-  if (loading && !planner) {
-    return (
-      <ScrollView
-        style={[styles.container, { backgroundColor: palette.background }]}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: 16 + insets.top }]}
-        accessibilityLabel="Carregando planner do dia"
-      >
-        <View style={styles.pageHeader}>
-          <ThemedText type="title" style={styles.pageTitle}>
-            Hoje • {headerDate}
-          </ThemedText>
-          <Skeleton height={8} borderRadius={4} />
-          <Skeleton height={14} width="60%" style={{ marginTop: 8 }} />
-        </View>
-        <PlannerSectionSkeleton />
-        <PlannerSectionSkeleton />
-        <PlannerSectionSkeleton />
-      </ScrollView>
-    );
-  }
-
-  if (error && !planner) {
-    return (
-      <View style={[styles.container, styles.centered, { backgroundColor: palette.background }]}>
-        <EmptyState
-          title="Falha ao carregar"
-          description={error.message || 'Não foi possível carregar o planner de hoje.'}
-          actionLabel="Tentar de novo"
-          onPressAction={() => {
-            void refresh();
-          }}
-        />
-      </View>
-    );
-  }
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: palette.background }]}
-      contentContainerStyle={[styles.scrollContent, { paddingTop: 16 + insets.top }]}
-      refreshControl={
-        <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={palette.text} />
-      }
-      accessibilityLabel="Planner do dia"
-    >
-      <View style={styles.pageHeader}>
-        <ThemedText type="title" style={styles.pageTitle}>
-          Hoje • {headerDate}
-        </ThemedText>
-        <DayProgressBar
-          completed={dayProgress.completed}
-          total={dayProgress.total}
-          ratio={dayProgress.ratio}
-        />
-      </View>
+    <>
+      <PlannerDayView date={today} titlePrefix="Hoje" headerAccessory={historyButton} />
 
-      {error ? (
-        <ThemedText type="default" style={[styles.inlineError, { color: palette.destructive }]}>
-          {error.message}
-        </ThemedText>
-      ) : null}
-
-      {PLANNER_SECTIONS.map((section) => (
-        <PlannerSectionBlock
-          key={section}
-          section={section}
-          items={getItemsBySection(items, section)}
-          onAdd={handleAdd(section)}
-          onToggle={handleToggle}
-          onDelete={handleDelete}
-        />
-      ))}
-
-      <PlannerNote value={noteValue} onChangeText={updateNote} />
-    </ScrollView>
+      <Modal
+        visible={historyVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={closeHistory}
+      >
+        <View style={[styles.modalContainer, { backgroundColor: palette.background }]}>
+          <View style={styles.modalHeader}>
+            <ThemedText type="title" style={styles.modalTitle} accessibilityRole="header">
+              Histórico
+            </ThemedText>
+            <Pressable
+              onPress={closeHistory}
+              style={styles.modalClose}
+              accessibilityRole="button"
+              accessibilityLabel="Fechar histórico"
+              hitSlop={8}
+            >
+              <Ionicons name="close" size={28} color={palette.text} />
+            </Pressable>
+          </View>
+          <View style={styles.modalBody}>
+            <PlannerHistoryList onSelectDate={handleSelectDate} />
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  centered: {
+  historyButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
   },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 32,
+  modalContainer: {
+    flex: 1,
+    paddingTop: 16,
   },
-  pageHeader: {
-    marginBottom: 20,
-    gap: 12,
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
-  pageTitle: {
+  modalTitle: {
     fontSize: 22,
-    lineHeight: 28,
   },
-  progressBlock: {
-    gap: 8,
+  modalClose: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  progressText: {
-    fontSize: 14,
-  },
-  progressTrack: {
-    height: 8,
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  sectionSkeleton: {
-    gap: 10,
-    marginBottom: 20,
-    padding: 16,
-  },
-  inlineError: {
-    marginBottom: 12,
-    fontSize: 14,
+  modalBody: {
+    flex: 1,
+    paddingHorizontal: 16,
   },
 });

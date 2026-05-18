@@ -62,6 +62,7 @@ export function PlannerNote({ value, onChangeText }: PlannerNoteProps): JSX.Elem
         multiline
         textAlignVertical="top"
         accessibilityLabel="Anotações do dia"
+        accessibilityHint="Texto salvo automaticamente ao editar"
       />
     </View>
   );

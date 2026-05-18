@@ -157,6 +157,37 @@ export async function listPlannerDates(db: Database): Promise<number[]> {
   return rows.map((row) => row.date);
 }
 
+export interface PlannerDaySummary {
+  date: number;
+  completed: number;
+  total: number;
+}
+
+export async function listPlannerSummaries(db: Database): Promise<PlannerDaySummary[]> {
+  const rows = await db.getAllAsync<{
+    date: number;
+    completed: number;
+    total: number;
+  }>(
+    `SELECT
+       dp.date AS date,
+       COALESCE(SUM(CASE WHEN pi.done = 1 THEN 1 ELSE 0 END), 0) AS completed,
+       COALESCE(COUNT(pi.id), 0) AS total
+     FROM daily_planners dp
+     LEFT JOIN planner_items pi
+       ON pi.planner_id = dp.id
+       AND pi.section IN ('main', 'priorities')
+     GROUP BY dp.id
+     ORDER BY dp.date DESC;`,
+  );
+
+  return rows.map((row) => ({
+    date: row.date,
+    completed: row.completed,
+    total: row.total,
+  }));
+}
+
 function mapPlanner(row: PlannerRow): DailyPlanner {
   return {
     id: row.id,

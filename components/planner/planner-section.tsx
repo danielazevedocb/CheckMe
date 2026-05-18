@@ -36,6 +36,7 @@ export function PlannerSectionBlock({
   const palette = Colors[resolved];
   const [draft, setDraft] = useState('');
   const [adding, setAdding] = useState(false);
+  const [limitMessage, setLimitMessage] = useState<string | null>(null);
 
   const limit = SECTION_LIMITS[section];
   const isAtLimit = limit != null && items.length >= limit;
@@ -51,20 +52,32 @@ export function PlannerSectionBlock({
 
   const handleAdd = useCallback(async () => {
     const trimmed = draft.trim();
-    if (!trimmed || isAtLimit || adding) {
+    if (!trimmed || adding) {
       return;
     }
 
+    if (isAtLimit) {
+      if (limit != null) {
+        setLimitMessage(`Limite de ${limit} itens atingido`);
+      }
+      return;
+    }
+
+    setLimitMessage(null);
     setAdding(true);
+
     try {
       const success = await onAdd(trimmed);
       if (success) {
         setDraft('');
+        setLimitMessage(null);
+      } else if (limit != null) {
+        setLimitMessage(`Limite de ${limit} itens atingido`);
       }
     } finally {
       setAdding(false);
     }
-  }, [adding, draft, isAtLimit, onAdd]);
+  }, [adding, draft, isAtLimit, limit, onAdd]);
 
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<PlannerItem>) => (
@@ -126,10 +139,26 @@ export function PlannerSectionBlock({
         />
       ) : null}
 
+      {isAtLimit || limitMessage ? (
+        <ThemedText
+          type="default"
+          style={[styles.limitMessage, { color: palette.textMuted }]}
+          accessibilityRole="text"
+          accessibilityLiveRegion="polite"
+        >
+          {limitMessage ?? (limit != null ? `Limite de ${limit} itens atingido` : '')}
+        </ThemedText>
+      ) : null}
+
       <View style={styles.addRow}>
         <TextField
           value={draft}
-          onChangeText={setDraft}
+          onChangeText={(text) => {
+            setDraft(text);
+            if (limitMessage) {
+              setLimitMessage(null);
+            }
+          }}
           placeholder={isAtLimit ? 'Limite da seção atingido' : 'Adicionar item'}
           editable={!isAtLimit && !adding}
           onSubmitEditing={() => {
@@ -196,6 +225,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   list: {
+    marginBottom: 8,
+  },
+  limitMessage: {
+    fontSize: 13,
     marginBottom: 8,
   },
   addRow: {

@@ -321,11 +321,11 @@ As tasks deste grupo têm dependências sequenciais. Implementar na ordem indica
 **Prioridade**: Baixa (v1.2 pode entrar)  
 **Esforço**: Médio (~2h)
 
-- [ ] Criar `app/planner/[date].tsx` — tela de planner de um dia específico
-- [ ] Carregar com `useDailyPlanner(parsedDate)` onde `parsedDate` vem do param
-- [ ] Modo leitura/edição igual à tela principal (sem restrição de data)
-- [ ] Botão no header de "Hoje" → lista de datas disponíveis → navega para `/planner/[date]`
-- [ ] Criar `components/planner/planner-history-list.tsx` — lista de dias com progresso
+- [x] Criar `app/planner/[date].tsx` — tela de planner de um dia específico
+- [x] Carregar com `useDailyPlanner(parsedDate)` onde `parsedDate` vem do param
+- [x] Modo leitura/edição igual à tela principal (sem restrição de data)
+- [x] Botão no header de "Hoje" → lista de datas disponíveis → navega para `/planner/[date]`
+- [x] Criar `components/planner/planner-history-list.tsx` — lista de dias com progresso
 
 **Arquivos**: `app/planner/[date].tsx` (novo), `components/planner/planner-history-list.tsx` (novo)
 
@@ -339,11 +339,11 @@ As tasks deste grupo têm dependências sequenciais. Implementar na ordem indica
 **Prioridade**: Média  
 **Esforço**: Pequeno (~1h)
 
-- [ ] `accessibilityRole="button"` em todos os checkboxes do Planner
-- [ ] `accessibilityLabel` descritivo: "Marcar [nome do item] como concluído"
-- [ ] `accessibilityState={{ checked: done }}` nos checkboxes
-- [ ] `accessibilityRole="header"` nos títulos de seção
-- [ ] Touch targets ≥ 44px em todos os elementos interativos
+- [x] `accessibilityRole="button"` em todos os checkboxes do Planner
+- [x] `accessibilityLabel` descritivo: "Marcar [nome do item] como concluído"
+- [x] `accessibilityState={{ checked: done }}` nos checkboxes
+- [x] `accessibilityRole="header"` nos títulos de seção
+- [x] Touch targets ≥ 44px em todos os elementos interativos
 
 **Arquivos**: `components/planner/planner-item-row.tsx`, `components/planner/planner-section.tsx`
 
@@ -353,10 +353,10 @@ As tasks deste grupo têm dependências sequenciais. Implementar na ordem indica
 **Prioridade**: Média  
 **Esforço**: Pequeno (~1h)
 
-- [ ] Impedir adição de item vazio (validar `name.trim()` antes de chamar `addItem`)
-- [ ] Exibir mensagem quando seção está no limite: "Limite de X itens atingido"
-- [ ] Ao excluir item, remover imediatamente da UI (optimistic update) e reverter em erro
-- [ ] Testar abertura do app sem nenhum planner criado ainda
+- [x] Impedir adição de item vazio (validar `name.trim()` antes de chamar `addItem`)
+- [x] Exibir mensagem quando seção está no limite: "Limite de X itens atingido"
+- [x] Ao excluir item, remover imediatamente da UI (optimistic update) e reverter em erro
+- [x] Testar abertura do app sem nenhum planner criado ainda
 
 ---
 
@@ -364,9 +364,9 @@ As tasks deste grupo têm dependências sequenciais. Implementar na ordem indica
 **Prioridade**: Baixa  
 **Esforço**: Pequeno (~1h)
 
-- [ ] Verificar que `PlannerItemRow` e `ChecklistItemRow` têm altura e padding consistentes
-- [ ] Verificar que fontes, cores de texto e ícones seguem os mesmos tokens do tema
-- [ ] Verificar que estados de loading/error/empty têm aparência coerente nas duas features
+- [x] Verificar que `PlannerItemRow` e `ChecklistItemRow` têm altura e padding consistentes
+- [x] Verificar que fontes, cores de texto e ícones seguem os mesmos tokens do tema
+- [x] Verificar que estados de loading/error/empty têm aparência coerente nas duas features
 
 ---
 

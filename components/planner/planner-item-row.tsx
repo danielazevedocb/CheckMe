@@ -47,7 +47,7 @@ function PlannerItemRowComponent({
       <Pressable
         style={styles.mainRow}
         onPress={handleTogglePress}
-        accessibilityRole="checkbox"
+        accessibilityRole="button"
         accessibilityState={{ checked: item.done }}
         accessibilityLabel={
           item.done ? `Desmarcar ${item.name}` : `Marcar ${item.name} como concluído`
@@ -100,17 +100,17 @@ export const PlannerItemRow = memo(PlannerItemRowComponent);
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
-    marginBottom: 8,
+    marginBottom: 12,
     overflow: 'hidden',
   },
   mainRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    gap: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     minHeight: 44,
   },
   checkboxHitArea: {
@@ -122,18 +122,20 @@ const styles = StyleSheet.create({
   name: {
     flex: 1,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   actions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingBottom: 10,
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
   actionButton: {
     minHeight: 44,
+    minWidth: 44,
     justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 8,
   },
   actionLabel: {

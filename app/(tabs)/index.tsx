@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 
@@ -69,7 +70,7 @@ export default function HomeScreen(): JSX.Element {
   const db = useDatabase();
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
-  const [statusFilter, setStatusFilter] = useState<ChecklistStatus>('all');
+  const [statusFilter, setStatusFilter] = useState<ChecklistStatus>('open');
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebouncedValue(searchInput, 300);
   const { data, loading, refresh, error } = useChecklists(statusFilter, debouncedSearch);
@@ -88,6 +89,7 @@ export default function HomeScreen(): JSX.Element {
     [router],
   );
 
+  const insets = useSafeAreaInsets();
   const [typeModalVisible, setTypeModalVisible] = useState(false);
 
   const goToNewChecklist = useCallback((type?: 'task' | 'shopping') => {
@@ -186,7 +188,7 @@ export default function HomeScreen(): JSX.Element {
         animationType="slide"
         onRequestClose={() => setTypeModalVisible(false)}>
         <Pressable style={[styles.modalBackdrop, { backgroundColor: palette.overlay }]} onPress={() => setTypeModalVisible(false)}>
-          <Pressable style={[styles.typeSheet, { backgroundColor: palette.surface }]}>
+          <Pressable style={[styles.typeSheet, { backgroundColor: palette.surface, paddingBottom: Math.max(24, insets.bottom + 16) }]}>
             <ThemedText type="subtitle" style={styles.sheetTitle}>Nova checklist</ThemedText>
             <Pressable
               onPress={() => goToNewChecklist('task')}
@@ -253,7 +255,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     padding: 24,
     gap: 16,
-    paddingBottom: 40,
   },
   sheetTitle: {
     marginBottom: 4,

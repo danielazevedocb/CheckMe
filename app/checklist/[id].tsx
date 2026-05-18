@@ -26,7 +26,6 @@ import { TaskItem } from '@/components/checklist/task-item';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
-import { FloatingActionButton } from '@/components/ui/fab';
 import { Colors } from '@/constants/theme';
 import { useDatabase } from '@/contexts/database-context';
 import { useThemeMode } from '@/contexts/theme-context';
@@ -493,13 +492,6 @@ export default function ChecklistDetailsScreen(): JSX.Element {
           renderItem={renderItem}
         />
       </KeyboardAvoidingView>
-
-      {taskModal === null ? (
-        <FloatingActionButton
-          accessibilityLabel="Adicionar tarefa"
-          onPress={() => setTaskModal({ mode: 'create' })}
-        />
-      ) : null}
 
       <Modal
         transparent

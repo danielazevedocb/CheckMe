@@ -24,7 +24,7 @@ Tarefas de implementação da visão **múltiplas checklists + tarefas com prior
 | Coluna `icon` em checklists | Sim — migration v4 |
 | Limpeza planner + colunas legadas | Sim — migration v5 |
 | `TaskItem`, `PriorityBadge`, `ProgressBar` | Sim — `components/checklist/*`; `ChecklistItemRow` reexporta `TaskItem` |
-| Home v2.0 (lista única + % + ícone) | Parcial — cards com `ProgressBar` + %; abas `abertas` / `concluidas` (V3.1) |
+| Home v2.0 (lista única + % + ícone) | Sim — `app/(tabs)/index.tsx` com chips Todas / Em aberto / Concluídas |
 | Planner (`hoje`, `planner/[date]`) | Removido (Grupo L) |
 | UX v1.1 (háptico, skeleton, swipe, drag, busca) | **Implementado** em `TaskItem` / `abertas` |
 
@@ -170,13 +170,13 @@ Tarefas de implementação da visão **múltiplas checklists + tarefas com prior
 **Prioridade**: Alta  
 **Esforço**: Médio (~3h)
 
-- [ ] Refatorar `app/(tabs)/abertas.tsx` → home única de checklists (ou `index.tsx`)
-- [ ] Lista todas as checklists com busca debounce (reaproveitar A6)
-- [ ] `EmptyState` + `FloatingAddButton` (`components/ui/fab.tsx`)
-- [ ] Skeleton (`ChecklistCardSkeleton`) no loading
-- [ ] Decidir destino da aba `concluidas` (filtro na mesma lista vs. remover aba)
+- [x] Refatorar `app/(tabs)/index.tsx` → home única de checklists (substitui `abertas` / `concluidas`)
+- [x] Lista todas as checklists com busca debounce (reaproveitar A6)
+- [x] `EmptyState` + `FloatingAddButton` (`components/ui/fab.tsx`)
+- [x] Skeleton (`ChecklistCardSkeleton`) no loading
+- [x] Aba `concluidas` removida — filtro por chips na mesma tela (Todas / Em aberto / Concluídas)
 
-**Arquivos**: `app/(tabs)/abertas.tsx`, `app/(tabs)/_layout.tsx`, `hooks/use-checklists.ts`
+**Arquivos**: `app/(tabs)/index.tsx`, `app/(tabs)/_layout.tsx`, `types/checklist.ts`, `repositories/checklist-repository.ts`
 
 ---
 

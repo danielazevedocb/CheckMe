@@ -1,4 +1,4 @@
-export type ChecklistStatus = 'open' | 'completed';
+export type ChecklistStatus = 'all' | 'open' | 'completed';
 
 export type TaskPriority = 'HIGH' | 'MEDIUM' | 'LOW';
 

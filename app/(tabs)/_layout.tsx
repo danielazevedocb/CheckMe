@@ -24,9 +24,9 @@ export default function TabLayout() {
         sceneStyle: { backgroundColor: palette.background },
       }}>
       <Tabs.Screen
-        name="abertas"
+        name="index"
         options={{
-          title: 'Abertas',
+          title: 'Checklists',
           tabBarIcon: ({ color, size }) => <Ionicons name="list" color={color} size={size} />,
           headerRight: () => (
             <Pressable
@@ -36,13 +36,6 @@ export default function TabLayout() {
               <Ionicons name="settings-outline" size={22} color={palette.text} />
             </Pressable>
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="concluidas"
-        options={{
-          title: 'Concluídas',
-          tabBarIcon: ({ color, size }) => <Ionicons name="checkmark-done" color={color} size={size} />,
         }}
       />
       <Tabs.Screen

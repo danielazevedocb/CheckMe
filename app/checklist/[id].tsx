@@ -10,6 +10,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -49,8 +50,12 @@ type TaskModalState =
   | { mode: 'edit'; item: ChecklistItem };
 
 export default function ChecklistDetailsScreen(): JSX.Element {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const checklistId = Number(id);
+  const { id: idParam } = useLocalSearchParams<{ id: string | string[] }>();
+  const checklistId = useMemo(() => {
+    const raw = Array.isArray(idParam) ? idParam[0] : idParam;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : NaN;
+  }, [idParam]);
   const router = useRouter();
   const navigation = useNavigation();
   const headerHeight = useHeaderHeight();
@@ -344,6 +349,19 @@ export default function ChecklistDetailsScreen(): JSX.Element {
 
   const keyExtractor = useCallback((item: ChecklistItem) => item.id.toString(), []);
 
+  const hasTasks = itemsOrder.length > 0;
+
+  if (!Number.isFinite(checklistId)) {
+    return (
+      <EmptyState
+        title="Checklist inválida"
+        description="Não foi possível abrir esta checklist."
+        actionLabel="Voltar"
+        onPressAction={() => router.back()}
+      />
+    );
+  }
+
   if (loading && !checklist) {
     return (
       <View
@@ -453,35 +471,45 @@ export default function ChecklistDetailsScreen(): JSX.Element {
       />
     );
 
-  const listContentStyle = [
-    styles.listContent,
-    itemsOrder.length === 0 ? styles.listContentEmpty : null,
-  ];
+  const scrollContentStyle = [styles.listContent, styles.listContentGrow];
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.screen, { backgroundColor: palette.background }]}
-      // Android/web: behavior "height" collapses the list body to zero when the keyboard is hidden.
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}>
-      <DraggableFlatList
-        ref={draggableListRef}
+    <View style={[styles.screen, { backgroundColor: palette.background }]}>
+      <KeyboardAvoidingView
         style={styles.flex}
-        contentContainerStyle={listContentStyle}
-        keyboardShouldPersistTaps="handled"
-        ListHeaderComponent={renderHeader}
-        ListFooterComponent={renderFooter}
-        ListEmptyComponent={listEmptyComponent}
-        accessibilityLabel={`Checklist ${checklist.title}`}
-        showsVerticalScrollIndicator={false}
-        data={itemsOrder}
-        extraData={`${refreshKey}-${priorityFilter}-${isDragging}`}
-        keyExtractor={keyExtractor}
-        renderItem={renderDraggableItem}
-        onDragBegin={dragEnabled ? handleDragBegin : undefined}
-        onDragEnd={dragEnabled ? handleDragEnd : undefined}
-        activationDistance={dragEnabled ? 8 : 9999}
-      />
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}>
+        {hasTasks ? (
+          <DraggableFlatList
+            ref={draggableListRef}
+            style={styles.flex}
+            contentContainerStyle={styles.listContent}
+            keyboardShouldPersistTaps="handled"
+            ListHeaderComponent={renderHeader}
+            ListFooterComponent={renderFooter}
+            accessibilityLabel={`Checklist ${checklist.title}`}
+            showsVerticalScrollIndicator={false}
+            data={itemsOrder}
+            extraData={`${refreshKey}-${priorityFilter}-${isDragging}`}
+            keyExtractor={keyExtractor}
+            renderItem={renderDraggableItem}
+            onDragBegin={dragEnabled ? handleDragBegin : undefined}
+            onDragEnd={dragEnabled ? handleDragEnd : undefined}
+            activationDistance={dragEnabled ? 8 : 9999}
+          />
+        ) : (
+          <ScrollView
+            style={styles.flex}
+            contentContainerStyle={scrollContentStyle}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            accessibilityLabel={`Checklist ${checklist.title}`}>
+            {renderHeader()}
+            {listEmptyComponent}
+            {renderFooter()}
+          </ScrollView>
+        )}
+      </KeyboardAvoidingView>
 
       {taskModal === null ? (
         <FloatingActionButton
@@ -513,7 +541,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
           </View>
         </View>
       </Modal>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -530,7 +558,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     gap: 16,
   },
-  listContentEmpty: {
+  listContentGrow: {
     flexGrow: 1,
   },
   centered: {

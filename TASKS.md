@@ -184,11 +184,11 @@ Tarefas de implementação da visão **múltiplas checklists + tarefas com prior
 **Prioridade**: Alta  
 **Esforço**: Grande (~4h)
 
-- [ ] `app/checklist/[id].tsx`: lista `TaskItem`, ordenação por prioridade
-- [ ] Filtro por prioridade (chips ou menu: Todas / Alta / Média / Baixa)
-- [ ] Criar/editar tarefa com seletor de prioridade (default MEDIUM)
-- [ ] `DraggableFlatList` + `reorderItems` (adaptar A4)
-- [ ] Header com `ProgressBar` da lista
+- [x] `app/checklist/[id].tsx`: lista `TaskItem`, ordenação por prioridade
+- [x] Filtro por prioridade (chips ou menu: Todas / Alta / Média / Baixa)
+- [x] Criar/editar tarefa com seletor de prioridade (default MEDIUM)
+- [x] `DraggableFlatList` + `reorderItems` (adaptar A4)
+- [x] Header com `ProgressBar` da lista
 
 ---
 
@@ -196,8 +196,8 @@ Tarefas de implementação da visão **múltiplas checklists + tarefas com prior
 **Prioridade**: Média  
 **Esforço**: Médio (~2h)
 
-- [ ] `app/(tabs)/nova.tsx`: título, cor, ícone opcional; sem modo texto/compras v1
-- [ ] Edição de checklist no detalhe ou modal
+- [x] `app/(tabs)/nova.tsx`: título, cor, ícone opcional; sem modo texto/compras v1
+- [x] Edição de checklist no detalhe ou modal
 
 ---
 
@@ -205,8 +205,8 @@ Tarefas de implementação da visão **múltiplas checklists + tarefas com prior
 **Prioridade**: Média  
 **Esforço**: Médio (~2h)
 
-- [ ] Campos: título, descrição opcional, prioridade
-- [ ] Validação `trim()` em título
+- [x] Campos: título, descrição opcional, prioridade
+- [x] Validação `trim()` em título
 
 ---
 

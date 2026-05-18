@@ -17,6 +17,8 @@ export default function RootLayout() {
         <DatabaseProvider>
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="checklist/[id]" options={{ title: 'Checklist' }} />
+            <Stack.Screen name="checklist/edit/[id]" options={{ title: 'Editar checklist' }} />
             <Stack.Screen name="config" options={{ title: 'Configurações' }} />
           </Stack>
         </DatabaseProvider>

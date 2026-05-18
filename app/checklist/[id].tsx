@@ -1,67 +1,51 @@
-import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker, { DateTimePickerAndroid, type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { type ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Keyboard,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import DraggableFlatList, {
-    ScaleDecorator,
-    type RenderItemParams,
+  ScaleDecorator,
+  type RenderItemParams,
 } from 'react-native-draggable-flatlist';
 import type { SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import { ProgressBar } from '@/components/checklist/progress-bar';
+import { TaskForm, type TaskFormValues } from '@/components/checklist/task-form';
 import { TaskItem } from '@/components/checklist/task-item';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
-import { TextField } from '@/components/ui/text-field';
-import { CHECKLIST_COLORS, DEFAULT_CHECKLIST_COLOR } from '@/constants/checklist-colors';
 import { Colors } from '@/constants/theme';
 import { useDatabase } from '@/contexts/database-context';
 import { useThemeMode } from '@/contexts/theme-context';
 import { useChecklist } from '@/hooks/use-checklist';
-import type { Database } from '@/lib/database';
-import {
-    deleteChecklist,
-    updateChecklistColor,
-    updateChecklistMode,
-    updateChecklistSchedule,
-    updateChecklistTitle,
-} from '@/repositories/checklist-repository';
+import { deleteChecklist } from '@/repositories/checklist-repository';
 import { createItem, deleteItem, reorderItems, setItemDone, updateItem } from '@/repositories/item-repository';
-import type { ChecklistItem, ChecklistMode } from '@/types/checklist';
-import { getReadableTextColor } from '@/utils/color';
-import {
-    differenceInDays,
-    formatCurrency,
-    formatFullDate,
-    parseCurrencyInput,
-    parseQuantityInput,
-    startOfDay,
-} from '@/utils/format';
+import type { ChecklistItem, TaskPriority } from '@/types/checklist';
 
-interface EditItemState {
-  id: number;
-  name: string;
-  price: string;
-  quantity: string;
-}
+type PriorityFilter = 'ALL' | TaskPriority;
 
-type ScheduleState = 'today' | 'upcoming' | 'overdue' | 'default';
+const PRIORITY_FILTERS: { value: PriorityFilter; label: string }[] = [
+  { value: 'ALL', label: 'Todas' },
+  { value: 'HIGH', label: 'Alta' },
+  { value: 'MEDIUM', label: 'Média' },
+  { value: 'LOW', label: 'Baixa' },
+];
+
+type TaskModalState =
+  | { mode: 'create' }
+  | { mode: 'edit'; item: ChecklistItem };
 
 export default function ChecklistDetailsScreen(): JSX.Element {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -73,61 +57,44 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
 
-  const { data: checklist, loading, error, refresh } = useChecklist(checklistId);
+  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('ALL');
+  const priorityOption = priorityFilter === 'ALL' ? undefined : priorityFilter;
 
-  const [titleDraft, setTitleDraft] = useState('');
-  const [isSavingTitle, setSavingTitle] = useState(false);
-  const [newItemName, setNewItemName] = useState('');
-  const [newItemPrice, setNewItemPrice] = useState('');
-  const [newItemQuantity, setNewItemQuantity] = useState('1');
-  const [editingItem, setEditingItem] = useState<EditItemState | null>(null);
-  const [savingItem, setSavingItem] = useState(false);
-  const [modeChanging, setModeChanging] = useState(false);
-  const [textEditorVisible, setTextEditorVisible] = useState(false);
-  const [textDraft, setTextDraft] = useState('');
-  const [syncingText, setSyncingText] = useState(false);
-  const [scheduledDate, setScheduledDate] = useState<Date | null>(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [updatingSchedule, setUpdatingSchedule] = useState(false);
-  const [pickerDate, setPickerDate] = useState<Date>(startOfDay(new Date()));
-  const [color, setColor] = useState<string>(DEFAULT_CHECKLIST_COLOR);
-  const [updatingColor, setUpdatingColor] = useState(false);
+  const { data: checklist, loading, error, refresh } = useChecklist(checklistId, {
+    priority: priorityOption,
+  });
+
   const [itemsOrder, setItemsOrder] = useState<ChecklistItem[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-  const flatListRef = useRef<FlatList<ChecklistItem> | null>(null);
+  const [taskModal, setTaskModal] = useState<TaskModalState | null>(null);
+  const [savingTask, setSavingTask] = useState(false);
+
   const draggableListRef = useRef<ComponentRef<typeof DraggableFlatList<ChecklistItem>> | null>(null);
   const itemsOrderRef = useRef(itemsOrder);
   const swipeableRefs = useRef<Record<number, SwipeableMethods | null>>({});
+
+  const accentColor = checklist?.color ?? palette.primary;
+  const dragEnabled = priorityFilter === 'ALL' && taskModal === null;
 
   useEffect(() => {
     itemsOrderRef.current = itemsOrder;
   }, [itemsOrder]);
 
   useEffect(() => {
-    if (checklist) {
-      setTitleDraft(checklist.title);
-      setColor(checklist.color);
-    }
-  }, [checklist]);
-
-  useEffect(() => {
-    if (checklist?.mode === 'text') {
-      setTextDraft(itemsToText(checklist.items));
-    }
-  }, [checklist?.mode, checklist?.items]);
-
-  useEffect(() => {
-    navigation.setOptions({ title: checklist?.title ?? 'Checklist' });
-  }, [checklist?.title, navigation]);
-
-  useEffect(() => {
-    if (checklist?.scheduledFor) {
-      setScheduledDate(new Date(checklist.scheduledFor));
-    } else {
-      setScheduledDate(null);
-    }
-  }, [checklist?.scheduledFor]);
+    navigation.setOptions({
+      title: checklist?.title ?? 'Checklist',
+      headerRight: () => (
+        <Pressable
+          onPress={() => router.push(`/checklist/edit/${checklistId}`)}
+          accessibilityRole="button"
+          accessibilityLabel="Editar checklist"
+          style={styles.headerAction}>
+          <ThemedText type="link">Editar</ThemedText>
+        </Pressable>
+      ),
+    });
+  }, [checklist?.title, checklistId, navigation, router]);
 
   useEffect(() => {
     if (checklist) {
@@ -140,10 +107,8 @@ export default function ChecklistDetailsScreen(): JSX.Element {
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
-      // Scroll to end when keyboard shows to bring input fields into view
       setTimeout(() => {
         draggableListRef.current?.scrollToEnd({ animated: true });
-        flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     });
 
@@ -152,150 +117,72 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     };
   }, []);
 
-  const totals = useMemo(() => {
-    if (!checklist) {
-      return { totalItems: 0, completedItems: 0, totalAmount: 0, completedAmount: 0 };
+  const taskFormInitial = useMemo((): Partial<TaskFormValues> | undefined => {
+    if (!taskModal || taskModal.mode === 'create') {
+      return undefined;
     }
 
-    const totalItems = checklist.items.length;
-    let completedItems = 0;
-    let totalAmount = 0;
-    let completedAmount = 0;
+    return {
+      title: taskModal.item.title,
+      description: taskModal.item.description ?? '',
+      priority: taskModal.item.priority,
+    };
+  }, [taskModal]);
 
-    for (const item of checklist.items) {
-      const price = item.price ?? 0;
-      const quantity = item.quantity ?? 1;
-      const itemTotal = price * quantity;
-      totalAmount += itemTotal;
-      if (item.done) {
-        completedItems += 1;
-        completedAmount += itemTotal;
+  const handleToggleItem = useCallback(
+    async (itemId: number) => {
+      const items = itemsOrderRef.current;
+      const item = items.find((entry) => entry.id === itemId);
+      if (!item) {
+        return;
       }
-    }
 
-    return { totalItems, completedItems, totalAmount, completedAmount };
-  }, [checklist]);
+      const totalItems = items.length;
+      const completedItems = items.filter((entry) => entry.completed).length;
+      const markingDone = !item.completed;
+      const willCompleteAll =
+        markingDone && totalItems > 0 && completedItems + 1 === totalItems;
 
-  const scheduleStatus = useMemo(() => {
-    if (!checklist?.scheduledFor) {
-      return null;
-    }
-    const diff = differenceInDays(Date.now(), checklist.scheduledFor);
-    if (diff === 0) {
-      return { label: 'Hoje', tone: 'today' as ScheduleState };
-    }
-    if (diff > 0) {
-      const label = diff === 1 ? 'Amanhã' : `Em ${diff} dias`;
-      return { label, tone: 'upcoming' as ScheduleState };
-    }
-    const overdue = Math.abs(diff);
-    const label = overdue === 1 ? '1 dia em atraso' : `${overdue} dias em atraso`;
-    return { label, tone: 'overdue' as ScheduleState };
-  }, [checklist?.scheduledFor]);
-
-  const handleSaveTitle = async () => {
-    if (!checklist) return;
-    const newTitle = titleDraft.trim();
-    if (!newTitle || newTitle === checklist.title) {
-      setTitleDraft(checklist.title);
-      return;
-    }
-
-    setSavingTitle(true);
-    try {
-      await updateChecklistTitle(db, checklist.id, newTitle);
-      await refresh();
-      Alert.alert('Checklist atualizada', 'O título foi alterado com sucesso.');
-    } catch (err) {
-      Alert.alert('Erro', 'Não foi possível atualizar o título.');
-      console.error(err);
-    } finally {
-      setSavingTitle(false);
-    }
-  };
-
-  const handleToggleItem = useCallback(async (itemId: number) => {
-    const items = itemsOrderRef.current;
-    const item = items.find((entry) => entry.id === itemId);
-    if (!item) {
-      return;
-    }
-
-    const totalItems = items.length;
-    const completedItems = items.filter((entry) => entry.done).length;
-    const markingDone = !item.done;
-    const willCompleteAll =
-      markingDone && totalItems > 0 && completedItems + 1 === totalItems;
-
-    try {
-      await setItemDone(db, itemId, !item.done);
-      await refresh();
-      if (willCompleteAll) {
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      try {
+        await setItemDone(db, itemId, !item.completed);
+        await refresh();
+        if (willCompleteAll) {
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        }
+      } catch (err) {
+        Alert.alert('Erro', 'Não foi possível atualizar a tarefa.');
+        console.error(err);
       }
-    } catch (err) {
-      Alert.alert('Erro', 'Não foi possível atualizar o item.');
-      console.error(err);
-    }
-  }, [db, refresh]);
+    },
+    [db, refresh],
+  );
 
-  const handleAddItem = async () => {
-    const name = newItemName.trim();
-    if (!name) {
-      Alert.alert('Informe o nome do item');
-      return;
-    }
+  const handleDeleteItem = useCallback(
+    (itemId: number) => {
+      const item = itemsOrderRef.current.find((entry) => entry.id === itemId);
+      if (!item) {
+        return;
+      }
 
-    const quantityValue = parseQuantityInput(newItemQuantity);
-    if (!quantityValue) {
-      Alert.alert('Informe uma quantidade válida (mínimo 1)');
-      return;
-    }
-
-    setSavingItem(true);
-    try {
-      await createItem(db, {
-        checklistId,
-        name,
-        price: parseCurrencyInput(newItemPrice),
-        quantity: quantityValue,
-        color,
-      });
-      setNewItemName('');
-      setNewItemPrice('');
-      setNewItemQuantity('1');
-      await refresh();
-    } catch (err) {
-      Alert.alert('Erro', 'Não foi possível adicionar o item.');
-      console.error(err);
-    } finally {
-      setSavingItem(false);
-    }
-  };
-
-  const handleDeleteItem = useCallback((itemId: number) => {
-    const item = itemsOrderRef.current.find((entry) => entry.id === itemId);
-    if (!item) {
-      return;
-    }
-
-    Alert.alert('Remover item', `Deseja remover "${item.name}"?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Remover',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteItem(db, itemId);
-            await refresh();
-          } catch (err) {
-            Alert.alert('Erro', 'Não foi possível remover o item.');
-            console.error(err);
-          }
+      Alert.alert('Remover tarefa', `Deseja remover "${item.title}"?`, [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Remover',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteItem(db, itemId);
+              await refresh();
+            } catch (err) {
+              Alert.alert('Erro', 'Não foi possível remover a tarefa.');
+              console.error(err);
+            }
+          },
         },
-      },
-    ]);
-  }, [db, refresh]);
+      ]);
+    },
+    [db, refresh],
+  );
 
   const handleSwipeDeleteItem = useCallback(
     async (itemId: number) => {
@@ -304,7 +191,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
         delete swipeableRefs.current[itemId];
         await refresh();
       } catch (err) {
-        Alert.alert('Erro', 'Não foi possível remover o item.');
+        Alert.alert('Erro', 'Não foi possível remover a tarefa.');
         console.error(err);
       }
     },
@@ -327,51 +214,11 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     delete swipeableRefs.current[itemId];
   }, []);
 
-  const handleMoveItem = useCallback(async (itemId: number, direction: 'up' | 'down') => {
-    const currentOrder = itemsOrderRef.current;
-    const currentIndex = currentOrder.findIndex((entry) => entry.id === itemId);
-    if (currentIndex === -1) {
-      return;
-    }
-
-    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (newIndex < 0 || newIndex >= currentOrder.length) {
-      return;
-    }
-
-    const newOrder = [...currentOrder];
-    const [movedItem] = newOrder.splice(currentIndex, 1);
-    newOrder.splice(newIndex, 0, movedItem);
-
-    setItemsOrder(newOrder);
-
-    try {
-      const newOrderIds = newOrder.map((entry) => entry.id);
-      await reorderItems(db, checklistId, newOrderIds);
-      await refresh();
-    } catch (err) {
-      Alert.alert('Erro', 'Não foi possível reordenar os itens.');
-      console.error(err);
-      setItemsOrder(currentOrder);
-    }
-  }, [checklistId, db, refresh]);
-
-  const handleMoveUp = useCallback(
-    (itemId: number) => {
-      void handleMoveItem(itemId, 'up');
-    },
-    [handleMoveItem],
-  );
-
-  const handleMoveDown = useCallback(
-    (itemId: number) => {
-      void handleMoveItem(itemId, 'down');
-    },
-    [handleMoveItem],
-  );
-
   const handleDeleteChecklist = () => {
-    if (!checklist) return;
+    if (!checklist) {
+      return;
+    }
+
     Alert.alert('Remover checklist', 'Esta ação não pode ser desfeita.', [
       { text: 'Cancelar', style: 'cancel' },
       {
@@ -380,7 +227,6 @@ export default function ChecklistDetailsScreen(): JSX.Element {
         onPress: async () => {
           try {
             await deleteChecklist(db, checklist.id);
-            Alert.alert('Checklist removida');
             router.back();
           } catch (err) {
             Alert.alert('Erro', 'Não foi possível remover a checklist.');
@@ -393,20 +239,10 @@ export default function ChecklistDetailsScreen(): JSX.Element {
 
   const openEditItem = useCallback((itemId: number) => {
     const item = itemsOrderRef.current.find((entry) => entry.id === itemId);
-    if (!item) {
-      return;
+    if (item) {
+      setTaskModal({ mode: 'edit', item });
     }
-
-    setEditingItem({
-      id: item.id,
-      name: item.name,
-      price: item.price?.toString() ?? '',
-      quantity: (item.quantity ?? 1).toString(),
-    });
   }, []);
-
-  const checklistMode = checklist?.mode ?? 'list';
-  const dragEnabled = checklistMode === 'list' && editingItem === null;
 
   const handleDragBegin = useCallback(() => {
     setIsDragging(true);
@@ -429,7 +265,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
         );
         await refresh();
       } catch (err) {
-        Alert.alert('Erro', 'Não foi possível reordenar os itens.');
+        Alert.alert('Erro', 'Não foi possível reordenar as tarefas.');
         console.error(err);
         setItemsOrder(previousOrder);
       }
@@ -437,45 +273,66 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     [checklistId, db, refresh],
   );
 
-  const renderDraggableItem = useCallback(
-    ({ item, drag, isActive, getIndex }: RenderItemParams<ChecklistItem>) => {
-      const index = getIndex() ?? 0;
-      const itemCount = itemsOrderRef.current.length;
-      const canMoveUp = index > 0;
-      const canMoveDown = index < itemCount - 1;
+  const handleTaskSubmit = useCallback(
+    async (values: TaskFormValues) => {
+      setSavingTask(true);
+      try {
+        if (taskModal?.mode === 'edit') {
+          await updateItem(db, taskModal.item.id, {
+            title: values.title,
+            description: values.description || null,
+            priority: values.priority,
+          });
+        } else {
+          await createItem(db, {
+            checklistId,
+            title: values.title,
+            description: values.description || null,
+            priority: values.priority,
+          });
+        }
 
-      return (
-        <ScaleDecorator activeScale={1.02}>
-          <TaskItem
-            item={item}
-            accentColor={color}
-            onToggle={handleToggleItem}
-            onEdit={openEditItem}
-            onDelete={handleDeleteItem}
-            onSwipeDelete={handleSwipeDeleteItem}
-            mode={checklistMode}
-            dragEnabled={dragEnabled}
-            onDrag={drag}
-            isDragging={isActive}
-            swipeEnabled={!isDragging && !isActive}
-            onSwipeableWillOpen={closeOtherSwipeables}
-            onSwipeableRef={handleSwipeableRef}
-            onMoveUp={canMoveUp ? handleMoveUp : undefined}
-            onMoveDown={canMoveDown ? handleMoveDown : undefined}
-            canMoveUp={canMoveUp}
-            canMoveDown={canMoveDown}
-          />
-        </ScaleDecorator>
-      );
+        setTaskModal(null);
+        await refresh();
+      } catch (err) {
+        Alert.alert(
+          'Erro',
+          taskModal?.mode === 'edit'
+            ? 'Não foi possível atualizar a tarefa.'
+            : 'Não foi possível adicionar a tarefa.',
+        );
+        console.error(err);
+      } finally {
+        setSavingTask(false);
+      }
     },
+    [checklistId, db, refresh, taskModal],
+  );
+
+  const renderDraggableItem = useCallback(
+    ({ item, drag, isActive }: RenderItemParams<ChecklistItem>) => (
+      <ScaleDecorator activeScale={1.02}>
+        <TaskItem
+          item={item}
+          accentColor={accentColor}
+          onToggle={handleToggleItem}
+          onEdit={openEditItem}
+          onDelete={handleDeleteItem}
+          onSwipeDelete={handleSwipeDeleteItem}
+          dragEnabled={dragEnabled}
+          onDrag={drag}
+          isDragging={isActive}
+          swipeEnabled={dragEnabled && !isDragging && !isActive}
+          onSwipeableWillOpen={closeOtherSwipeables}
+          onSwipeableRef={handleSwipeableRef}
+        />
+      </ScaleDecorator>
+    ),
     [
-      checklistMode,
+      accentColor,
       closeOtherSwipeables,
-      color,
       dragEnabled,
       handleDeleteItem,
-      handleMoveDown,
-      handleMoveUp,
       handleSwipeDeleteItem,
       handleSwipeableRef,
       handleToggleItem,
@@ -484,166 +341,12 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     ],
   );
 
-  const renderStaticItem = useCallback(
-    ({ item, index }: { item: ChecklistItem; index: number }) => {
-      const itemCount = itemsOrderRef.current.length;
-      const canMoveUp = index > 0;
-      const canMoveDown = index < itemCount - 1;
-
-      return (
-        <TaskItem
-          item={item}
-          accentColor={color}
-          onToggle={handleToggleItem}
-          onEdit={openEditItem}
-          onDelete={handleDeleteItem}
-          mode={checklistMode}
-          dragEnabled={false}
-          swipeEnabled={false}
-          onMoveUp={canMoveUp ? handleMoveUp : undefined}
-          onMoveDown={canMoveDown ? handleMoveDown : undefined}
-          canMoveUp={canMoveUp}
-          canMoveDown={canMoveDown}
-        />
-      );
-    },
-    [checklistMode, color, handleDeleteItem, handleMoveDown, handleMoveUp, handleToggleItem, openEditItem],
-  );
-
   const keyExtractor = useCallback((item: ChecklistItem) => item.id.toString(), []);
-
-  const handleSaveItemEdit = async () => {
-    if (!editingItem) return;
-    const name = editingItem.name.trim();
-    if (!name) {
-      Alert.alert('Informe o nome do item');
-      return;
-    }
-
-    const quantityValue = parseQuantityInput(editingItem.quantity);
-    if (!quantityValue) {
-      Alert.alert('Informe uma quantidade válida (mínimo 1)');
-      return;
-    }
-
-    try {
-      await updateItem(db, editingItem.id, {
-        name,
-        price: parseCurrencyInput(editingItem.price),
-        quantity: quantityValue,
-      });
-      setEditingItem(null);
-      await refresh();
-    } catch (err) {
-      Alert.alert('Erro', 'Não foi possível atualizar o item.');
-      console.error(err);
-    }
-  };
-
-  const handleModeChange = async (nextMode: ChecklistMode) => {
-    if (!checklist || checklist.mode === nextMode) {
-      return;
-    }
-
-    setModeChanging(true);
-    try {
-      await updateChecklistMode(db, checklist.id, nextMode);
-      await refresh();
-      if (nextMode === 'text') {
-        setTextDraft(itemsToText(checklist.items));
-      }
-    } catch (err) {
-      Alert.alert('Erro', 'Não foi possível alterar o modo da checklist.');
-      console.error(err);
-    } finally {
-      setModeChanging(false);
-    }
-  };
-
-  const commitSchedule = async (date: Date | null) => {
-    if (!checklist) return;
-    setUpdatingSchedule(true);
-    try {
-      await updateChecklistSchedule(db, checklist.id, date ? startOfDay(date).getTime() : null);
-      setScheduledDate(date);
-      await refresh();
-    } catch (err) {
-      Alert.alert('Erro', 'Não foi possível atualizar o agendamento.');
-      console.error(err);
-    } finally {
-      setUpdatingSchedule(false);
-    }
-  };
-
-  const handleColorChange = async (nextColor: string) => {
-    if (!checklist || color === nextColor) {
-      return;
-    }
-
-    setUpdatingColor(true);
-    try {
-      await updateChecklistColor(db, checklist.id, nextColor);
-      setColor(nextColor);
-      await refresh();
-    } catch (err) {
-      Alert.alert('Erro', 'Não foi possível atualizar a cor.');
-      console.error(err);
-    } finally {
-      setUpdatingColor(false);
-    }
-  };
-
-  const openSchedulePicker = () => {
-    const today = startOfDay(new Date());
-    const currentDate = scheduledDate ?? today;
-
-    if (Platform.OS === 'android') {
-      DateTimePickerAndroid.open({
-        value: currentDate,
-        mode: 'date',
-        minimumDate: today,
-        onChange: (event, date) => {
-          if (event.type === 'set' && date) {
-            void commitSchedule(startOfDay(date));
-          }
-        },
-      });
-      return;
-    }
-
-    setPickerDate(currentDate);
-    setShowDatePicker(true);
-  };
-
-  const handleSyncTextItems = async () => {
-    if (!checklist) return;
-
-    const lines = textDraft
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
-
-    if (lines.length === 0) {
-      Alert.alert('Informe pelo menos uma linha', 'Escreva o conteúdo da checklist.');
-      return;
-    }
-
-    setSyncingText(true);
-    try {
-      await syncItemsFromLines(db, checklistId, checklist.items, lines, color);
-      setTextEditorVisible(false);
-      await refresh();
-    } catch (err) {
-      Alert.alert('Erro', 'Não foi possível salvar o texto.');
-      console.error(err);
-    } finally {
-      setSyncingText(false);
-    }
-  };
 
   if (loading && !checklist) {
     return (
-      <View style={[styles.centered, { backgroundColor: palette.background }]}
+      <View
+        style={[styles.centered, { backgroundColor: palette.background }]}
         accessibilityLabel="Carregando checklist">
         <ActivityIndicator />
       </View>
@@ -661,503 +364,145 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     );
   }
 
-  const isListMode = checklist.mode === 'list';
-
   const renderHeader = () => (
     <View style={styles.header}>
-      <View style={styles.section}>
-        <TextField
-          label="Título"
-          value={titleDraft}
-          onChangeText={setTitleDraft}
-          onBlur={handleSaveTitle}
-          editable={!isSavingTitle}
-        />
-        <Button label="Salvar título" onPress={handleSaveTitle} loading={isSavingTitle} variant="secondary" />
+      <View style={styles.titleRow}>
+        {checklist.icon ? (
+          <Text style={styles.checklistIcon} accessibilityElementsHidden importantForAccessibility="no">
+            {checklist.icon}
+          </Text>
+        ) : null}
+        <ThemedText type="title" style={styles.checklistTitle} numberOfLines={2}>
+          {checklist.title}
+        </ThemedText>
       </View>
 
       <View
-        style={[styles.statsCard, { backgroundColor: palette.surface, borderColor: palette.border }]}
+        style={[styles.progressCard, { backgroundColor: palette.surface, borderColor: palette.border }]}
         accessibilityRole="summary">
         <ProgressBar
           label="Progresso"
-          completed={totals.completedItems}
-          total={totals.totalItems}
+          completed={checklist.completedItems}
+          total={checklist.totalItems}
           showPercent
         />
-        <View style={styles.statsRow}>
-          <Stat label="Total" value={formatCurrency(totals.totalAmount)} />
-          <Stat label="✓ Somado" value={formatCurrency(totals.completedAmount)} accent={palette.success} />
-        </View>
       </View>
 
-      <ScheduleCard
-        palette={palette}
-        scheduledDate={scheduledDate}
-        status={scheduleStatus}
-        onEdit={openSchedulePicker}
-        onClear={() => void commitSchedule(null)}
-        loading={updatingSchedule}
-        color={color}
-      />
-
-      <ColorSelector
-        currentColor={color}
-        onSelect={handleColorChange}
-        disabled={updatingColor}
-        label="Cor da checklist"
-      />
-
-      <View style={[styles.modeSelector, { backgroundColor: palette.surface }]}
-        accessibilityRole="radiogroup">
-        <ModeToggle
-          label="Lista"
-          selected={isListMode}
-          onPress={() => handleModeChange('list')}
-          palette={palette}
-          disabled={modeChanging}
-        />
-        <ModeToggle
-          label="Texto"
-          selected={!isListMode}
-          onPress={() => handleModeChange('text')}
-          palette={palette}
-          disabled={modeChanging}
-        />
+      <View style={styles.filterRow} accessibilityRole="tablist">
+        {PRIORITY_FILTERS.map((filter) => {
+          const selected = priorityFilter === filter.value;
+          return (
+            <Pressable
+              key={filter.value}
+              accessibilityRole="tab"
+              accessibilityState={{ selected }}
+              accessibilityLabel={filter.label}
+              onPress={() => setPriorityFilter(filter.value)}
+              style={[
+                styles.filterChip,
+                {
+                  backgroundColor: selected ? palette.primary : palette.surface,
+                  borderColor: selected ? palette.primary : palette.border,
+                },
+              ]}>
+              <Text
+                style={[
+                  styles.filterLabel,
+                  { color: selected ? palette.primaryForeground : palette.text },
+                ]}>
+                {filter.label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
-      {checklist.mode === 'text' ? (
-        <View style={[styles.section, styles.textModeInfo, { borderColor: palette.border }]}>
-          <ThemedText style={{ color: palette.textMuted }}>
-            Cada linha do texto vira um item marcável. Use o botão abaixo para editar todo o conteúdo.
-          </ThemedText>
-          <Button label="Editar texto" variant="secondary" onPress={() => setTextEditorVisible(true)} />
-        </View>
+      {priorityFilter !== 'ALL' ? (
+        <ThemedText style={[styles.filterHint, { color: palette.textMuted }]}>
+          Reordenar tarefas está disponível com o filtro &quot;Todas&quot;.
+        </ThemedText>
       ) : null}
     </View>
   );
 
   const renderFooter = () => (
     <View style={styles.footer}>
-      {isListMode ? (
-        <View style={[styles.section, styles.newItemSection, { borderColor: palette.border }]}
-          accessibilityLabel="Adicionar novo item">
-          <TextField
-            label="Novo item"
-            value={newItemName}
-            onChangeText={setNewItemName}
-            placeholder="Nome do item"
-          />
-          <TextField
-            label="Preço"
-            value={newItemPrice}
-            onChangeText={setNewItemPrice}
-            keyboardType="decimal-pad"
-            placeholder="0,00"
-          />
-          <TextField
-            label="Quantidade"
-            value={newItemQuantity}
-            onChangeText={setNewItemQuantity}
-            keyboardType="number-pad"
-            placeholder="1"
-          />
-          <Button label="Adicionar item" onPress={handleAddItem} loading={savingItem} />
-        </View>
-      ) : null}
-
+      <Button label="Adicionar tarefa" onPress={() => setTaskModal({ mode: 'create' })} />
+      <Button
+        label="Editar checklist"
+        variant="secondary"
+        onPress={() => router.push(`/checklist/edit/${checklistId}`)}
+      />
       <Button label="Remover checklist" variant="danger" onPress={handleDeleteChecklist} />
     </View>
   );
 
   const listEmptyComponent = (
     <View style={styles.emptyList}>
-      <ThemedText style={{ color: palette.textMuted }}>Nenhum item adicionado ainda.</ThemedText>
+      <ThemedText style={{ color: palette.textMuted }}>
+        {priorityFilter === 'ALL'
+          ? 'Nenhuma tarefa ainda. Adicione a primeira abaixo.'
+          : 'Nenhuma tarefa com esta prioridade.'}
+      </ThemedText>
     </View>
   );
-
-  const renderNativeList = () => {
-    const listProps = {
-      style: styles.flex,
-      contentContainerStyle: styles.listContent,
-      keyboardShouldPersistTaps: 'handled' as const,
-      ListHeaderComponent: renderHeader,
-      ListFooterComponent: renderFooter,
-      ListEmptyComponent: listEmptyComponent,
-      accessibilityLabel: `Checklist ${checklist.title}`,
-      showsVerticalScrollIndicator: false,
-    };
-
-    if (isListMode) {
-      return (
-        <DraggableFlatList
-          ref={draggableListRef}
-          {...listProps}
-          data={itemsOrder}
-          extraData={`${refreshKey}-${editingItem?.id ?? 'none'}-${isDragging}`}
-          keyExtractor={keyExtractor}
-          renderItem={renderDraggableItem}
-          onDragBegin={handleDragBegin}
-          onDragEnd={handleDragEnd}
-          activationDistance={8}
-        />
-      );
-    }
-
-    return (
-      <FlatList
-        ref={flatListRef}
-        {...listProps}
-        data={itemsOrder}
-        extraData={refreshKey}
-        keyExtractor={keyExtractor}
-        renderItem={({ item, index }) => renderStaticItem({ item, index })}
-      />
-    );
-  };
 
   return (
     <KeyboardAvoidingView
       style={[styles.screen, { backgroundColor: palette.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={headerHeight}>
-      {renderNativeList()}
-
-      <Modal transparent visible={Boolean(editingItem)} animationType="slide" onRequestClose={() => setEditingItem(null)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: palette.surface }]}
-            accessibilityLabel="Editar item">
-            <TextField
-              label="Nome do item"
-              value={editingItem?.name ?? ''}
-              onChangeText={(value) => setEditingItem((prev) => (prev ? { ...prev, name: value } : prev))}
-            />
-            <TextField
-              label="Preço"
-              value={editingItem?.price ?? ''}
-              onChangeText={(value) => setEditingItem((prev) => (prev ? { ...prev, price: value } : prev))}
-              keyboardType="decimal-pad"
-            />
-            <TextField
-              label="Quantidade"
-              value={editingItem?.quantity ?? ''}
-              onChangeText={(value) => setEditingItem((prev) => (prev ? { ...prev, quantity: value } : prev))}
-              keyboardType="number-pad"
-              placeholder="1"
-            />
-            <View style={styles.modalActions}>
-              <Button label="Cancelar" variant="ghost" onPress={() => setEditingItem(null)} />
-              <Button label="Salvar" onPress={handleSaveItemEdit} />
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <DraggableFlatList
+        ref={draggableListRef}
+        style={styles.flex}
+        contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={renderHeader}
+        ListFooterComponent={renderFooter}
+        ListEmptyComponent={listEmptyComponent}
+        accessibilityLabel={`Checklist ${checklist.title}`}
+        showsVerticalScrollIndicator={false}
+        data={itemsOrder}
+        extraData={`${refreshKey}-${priorityFilter}-${isDragging}`}
+        keyExtractor={keyExtractor}
+        renderItem={renderDraggableItem}
+        onDragBegin={dragEnabled ? handleDragBegin : undefined}
+        onDragEnd={dragEnabled ? handleDragEnd : undefined}
+        activationDistance={dragEnabled ? 8 : 9999}
+      />
 
       <Modal
         transparent
-        visible={textEditorVisible}
+        visible={taskModal !== null}
         animationType="slide"
-        onRequestClose={() => setTextEditorVisible(false)}>
+        onRequestClose={() => setTaskModal(null)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: palette.surface }]}
-            accessibilityLabel="Editar texto da checklist">
-            <TextField
-              label="Itens (um por linha)"
-              value={textDraft}
-              onChangeText={setTextDraft}
-              multiline
-              numberOfLines={10}
-              helperText="Linhas vazias serão ignoradas."
+          <View
+            style={[styles.modalContent, { backgroundColor: palette.surface }]}
+            accessibilityLabel={taskModal?.mode === 'edit' ? 'Editar tarefa' : 'Nova tarefa'}>
+            <ThemedText type="subtitle">
+              {taskModal?.mode === 'edit' ? 'Editar tarefa' : 'Nova tarefa'}
+            </ThemedText>
+            <TaskForm
+              key={taskModal?.mode === 'edit' ? taskModal.item.id : 'create'}
+              initialValues={taskFormInitial}
+              submitLabel={taskModal?.mode === 'edit' ? 'Salvar alterações' : 'Adicionar tarefa'}
+              onSubmit={handleTaskSubmit}
+              onCancel={() => setTaskModal(null)}
+              loading={savingTask}
             />
-            <View style={styles.modalActions}>
-              <Button label="Cancelar" variant="ghost" onPress={() => setTextEditorVisible(false)} />
-              <Button label="Salvar" onPress={handleSyncTextItems} loading={syncingText} />
-            </View>
           </View>
         </View>
       </Modal>
-
-      <SchedulePickerModal
-        visible={showDatePicker}
-        initialDate={pickerDate}
-        onCancel={() => setShowDatePicker(false)}
-        onConfirm={async (date) => {
-          setShowDatePicker(false);
-          await commitSchedule(date);
-        }}
-        palette={palette}
-      />
     </KeyboardAvoidingView>
   );
 }
 
-function Stat({ label, value, accent }: { label: string; value: string; accent?: string }) {
-  const { resolved } = useThemeMode();
-  const palette = Colors[resolved];
-
-  return (
-    <View style={styles.stat} accessibilityRole="text">
-      <View style={[styles.statCard, { backgroundColor: palette.surfaceMuted }]}
-        accessibilityHint={label}>
-        <ThemedText style={[styles.statLabel, { color: palette.textMuted }]}>{label}</ThemedText>
-        <ThemedText type="defaultSemiBold" style={[styles.statValue, accent ? { color: accent } : null]}>
-          {value}
-        </ThemedText>
-      </View>
-    </View>
-  );
-}
-
-function ModeToggle({
-  label,
-  selected,
-  onPress,
-  palette,
-  disabled,
-}: {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-  palette: (typeof Colors)['light'];
-  disabled?: boolean;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={({ pressed }) => [
-        styles.modePill,
-        {
-          backgroundColor: selected ? palette.primary : 'transparent',
-          opacity: pressed ? 0.85 : 1,
-          borderColor: palette.border,
-        },
-      ]}
-      accessibilityRole="radio"
-      accessibilityState={{ selected, disabled }}
-      accessibilityLabel={label}>
-      <Text
-        style={[
-          styles.modePillLabel,
-          { color: selected ? palette.primaryForeground : palette.text },
-        ]}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
-function ScheduleCard({
-  scheduledDate,
-  status,
-  onEdit,
-  onClear,
-  palette,
-  loading,
-  color,
-}: {
-  scheduledDate: Date | null;
-  status: { label: string; tone: ScheduleState } | null;
-  onEdit: () => void;
-  onClear: () => void;
-  palette: (typeof Colors)['light'];
-  loading: boolean;
-  color: string;
-}) {
-  return (
-    <View
-      style={[
-        styles.scheduleCard,
-        {
-          borderColor: palette.border,
-          backgroundColor: palette.surface,
-        },
-      ]}
-      accessibilityRole="summary">
-      <View style={styles.scheduleHeader}>
-        <Ionicons name="calendar" size={20} color={color} />
-        <View style={styles.scheduleInfo}>
-          <ThemedText type="defaultSemiBold">Agendamento</ThemedText>
-          <ThemedText style={{ color: palette.textMuted }}>
-            {scheduledDate ? formatFullDate(scheduledDate.getTime()) : 'Nenhuma data definida'}
-          </ThemedText>
-        </View>
-        {status ? <ScheduleBadge status={status} palette={palette} color={color} /> : null}
-      </View>
-      <View style={styles.scheduleActions}>
-        <Button label={scheduledDate ? 'Alterar' : 'Agendar'} variant="secondary" onPress={onEdit} loading={loading} />
-        {scheduledDate ? (
-          <Button label="Remover" variant="ghost" onPress={onClear} disabled={loading} />
-        ) : null}
-      </View>
-    </View>
-  );
-}
-
-function SchedulePickerModal({
-  visible,
-  initialDate,
-  onCancel,
-  onConfirm,
-  palette,
-}: {
-  visible: boolean;
-  initialDate: Date;
-  onCancel: () => void;
-  onConfirm: (date: Date) => void;
-  palette: (typeof Colors)['light'];
-}) {
-  const [tempDate, setTempDate] = useState<Date>(initialDate);
-
-  useEffect(() => {
-    if (visible) {
-      setTempDate(initialDate);
-    }
-  }, [visible, initialDate]);
-
-  return (
-    <Modal transparent visible={visible} animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: palette.surface }]}
-          accessibilityLabel="Selecionar data">
-          <DateTimePicker
-            value={tempDate}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'calendar'}
-            onChange={(event: DateTimePickerEvent, date?: Date) => {
-              if (date) {
-                setTempDate(startOfDay(date));
-              }
-            }}
-            minimumDate={startOfDay(new Date())}
-            style={Platform.OS === 'web' ? styles.webDatePicker : undefined}
-          />
-          <View style={styles.modalActions}>
-            <Button label="Cancelar" variant="ghost" onPress={onCancel} />
-            <Button label="Confirmar" onPress={() => onConfirm(tempDate)} />
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
-function ScheduleBadge({
-  status,
-  palette,
-  color,
-}: {
-  status: { label: string; tone: ScheduleState };
-  palette: (typeof Colors)['light'];
-  color: string;
-}) {
-  const highlight = color;
-  const showHighlight = status.tone === 'today' || status.tone === 'upcoming' || status.tone === 'overdue';
-  const backgroundColor = showHighlight ? highlight : palette.surfaceMuted;
-  const textColor = showHighlight ? getReadableTextColor(highlight) : palette.text;
-
-  return (
-    <View style={[styles.badge, { backgroundColor }]}
-      accessibilityRole="text">
-      <ThemedText type="defaultSemiBold" style={{ color: textColor }}>
-        {status.label}
-      </ThemedText>
-    </View>
-  );
-}
-
-function ColorSelector({
-  currentColor,
-  onSelect,
-  disabled,
-  label = 'Cor da checklist',
-}: {
-  currentColor: string;
-  onSelect: (color: string) => void;
-  disabled?: boolean;
-  label?: string;
-}) {
-  return (
-    <View style={styles.colorSection} accessibilityRole="radiogroup">
-      {label ? <ThemedText type="defaultSemiBold">{label}</ThemedText> : null}
-      <View style={styles.colorGrid} accessibilityLabel="Escolher cor">
-        {CHECKLIST_COLORS.map((option) => {
-          const selected = option.value === currentColor;
-          return (
-            <Pressable
-              key={option.id}
-              onPress={() => (disabled ? undefined : onSelect(option.value))}
-              disabled={disabled}
-              accessibilityRole="radio"
-              accessibilityState={{ selected, disabled }}
-              accessibilityLabel={`Cor ${option.label}`}
-              style={({ pressed }) => [
-                styles.colorSwatch,
-                {
-                  backgroundColor: option.value,
-                  borderWidth: selected ? 3 : 1,
-                  opacity: pressed ? 0.85 : 1,
-                },
-              ]}
-            />
-          );
-        })}
-      </View>
-    </View>
-  );
-}
-
-async function syncItemsFromLines(
-  db: Database,
-  checklistId: number,
-  currentItems: ChecklistItem[],
-  lines: string[],
-  defaultColor: string,
-) {
-  const existing = [...currentItems];
-
-  for (let index = 0; index < lines.length; index += 1) {
-    const nextName = lines[index];
-    const position = index + 1;
-    const item = existing[index];
-
-    if (item) {
-      const updates: Partial<Omit<ChecklistItem, 'id' | 'checklistId'>> = {};
-      if (item.name !== nextName) {
-        updates.name = nextName;
-      }
-      if (item.position !== position) {
-        updates.position = position;
-      }
-
-      if (Object.keys(updates).length > 0) {
-        await updateItem(db, item.id, updates);
-      }
-    } else {
-      await createItem(db, {
-        checklistId,
-        name: nextName,
-        price: null,
-        quantity: 1,
-        position,
-        color: defaultColor,
-      });
-    }
-  }
-
-  if (lines.length < existing.length) {
-    for (let index = lines.length; index < existing.length; index += 1) {
-      await deleteItem(db, existing[index].id);
-    }
-  }
-}
-
-function itemsToText(items: ChecklistItem[]): string {
-  return items.map((item) => item.name).join('\n');
-}
-
 const styles = StyleSheet.create({
   screen: {
+    flex: 1,
+  },
+  flex: {
     flex: 1,
   },
   listContent: {
@@ -1165,13 +510,6 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
     paddingTop: 16,
     gap: 16,
-  },
-  flex: {
-    flex: 1,
-  },
-  emptyList: {
-    alignItems: 'center',
-    paddingVertical: 16,
   },
   centered: {
     flex: 1,
@@ -1181,104 +519,50 @@ const styles = StyleSheet.create({
   header: {
     gap: 16,
   },
-  footer: {
-    gap: 16,
-    marginTop: 8,
-  },
-  section: {
-    gap: 16,
-  },
-  statsCard: {
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 16,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  stat: {
-    flex: 1,
-  },
-  statCard: {
-    borderRadius: 14,
-    padding: 12,
-    gap: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  statValue: {
-    fontSize: 16,
-  },
-  scheduleCard: {
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 16,
-    gap: 12,
-  },
-  scheduleHeader: {
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
-  scheduleInfo: {
+  checklistIcon: {
+    fontSize: 28,
+  },
+  checklistTitle: {
     flex: 1,
-    gap: 4,
   },
-  scheduleActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  badge: {
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  modeSelector: {
-    flexDirection: 'row',
-    padding: 4,
+  progressCard: {
     borderRadius: 16,
-    gap: 8,
-  },
-  modePill: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
-    paddingVertical: 12,
     borderWidth: StyleSheet.hairlineWidth,
-  },
-  modePillLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  textModeInfo: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 16,
     padding: 16,
-    gap: 12,
   },
-  colorSection: {
-    gap: 12,
-  },
-  colorGrid: {
+  filterRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  filterLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  filterHint: {
+    fontSize: 13,
+  },
+  footer: {
     gap: 12,
+    marginTop: 8,
   },
-  colorSwatch: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderColor: 'rgba(15,23,42,0.2)',
-  },
-  newItemSection: {
+  emptyList: {
+    alignItems: 'center',
     paddingVertical: 16,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  headerAction: {
+    paddingHorizontal: 16,
   },
   modalOverlay: {
     flex: 1,
@@ -1290,14 +574,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     gap: 16,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-  },
-  webDatePicker: {
-    width: '100%',
-    height: 260,
+    maxHeight: '90%',
   },
 });

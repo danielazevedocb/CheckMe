@@ -216,8 +216,8 @@ Tarefas de implementação da visão **múltiplas checklists + tarefas com prior
 **Prioridade**: Baixa  
 **Esforço**: Médio
 
-- [ ] Strikethrough animado ao marcar `TaskItem` (Reanimated)
-- [ ] `ProgressBar` com `withTiming` ao atualizar %
+- [x] Strikethrough animado ao marcar `TaskItem` (Reanimated)
+- [x] `ProgressBar` com `withTiming` ao atualizar %
 
 ---
 

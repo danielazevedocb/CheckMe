@@ -1,10 +1,18 @@
-import { memo } from 'react';
+import { memo, useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
+import Animated, {
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useThemeMode } from '@/contexts/theme-context';
 import { computeChecklistProgressPercent } from '@/types/checklist';
+
+const FILL_ANIMATION_MS = 320;
 
 interface ProgressBarBaseProps {
   label?: string;
@@ -37,10 +45,24 @@ function ProgressBarComponent(props: ProgressBarProps): JSX.Element {
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
   const percent = resolvePercent(props);
+  const fillProgress = useSharedValue(percent / 100);
   const countLabel =
     props.completed != null && props.total != null
       ? `${props.completed}/${props.total}`
       : null;
+
+  const fillColor = percent === 100 ? palette.success : palette.primary;
+
+  useEffect(() => {
+    fillProgress.value = withTiming(percent / 100, { duration: FILL_ANIMATION_MS });
+    return () => {
+      cancelAnimation(fillProgress);
+    };
+  }, [fillProgress, percent]);
+
+  const fillAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleX: fillProgress.value }],
+  }));
 
   return (
     <View style={styles.wrapper} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: percent }}>
@@ -65,13 +87,11 @@ function ProgressBarComponent(props: ProgressBarProps): JSX.Element {
       ) : null}
 
       <View style={[styles.track, { backgroundColor: palette.surfaceMuted }]}>
-        <View
+        <Animated.View
           style={[
             styles.fill,
-            {
-              width: `${percent}%`,
-              backgroundColor: percent === 100 ? palette.success : palette.primary,
-            },
+            { backgroundColor: fillColor },
+            fillAnimatedStyle,
           ]}
         />
       </View>
@@ -117,6 +137,8 @@ const styles = StyleSheet.create({
   },
   fill: {
     height: '100%',
+    width: '100%',
     borderRadius: 3,
+    transformOrigin: 'left',
   },
 });

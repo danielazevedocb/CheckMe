@@ -3,6 +3,13 @@ import * as Haptics from 'expo-haptics';
 import { memo, useCallback, useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
+import Animated, {
+  cancelAnimation,
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { PriorityBadge } from '@/components/checklist/priority-badge';
 import { Colors } from '@/constants/theme';
@@ -36,6 +43,52 @@ function getTaskTitle(item: ChecklistItem | Task): string {
 
 function isTaskCompleted(item: ChecklistItem | Task): boolean {
   return item.completed ?? ('done' in item ? Boolean(item.done) : false);
+}
+
+const STRIKE_ANIMATION_MS = 280;
+
+interface AnimatedTaskTitleProps {
+  title: string;
+  completed: boolean;
+  activeColor: string;
+  completedColor: string;
+}
+
+function AnimatedTaskTitle({
+  title,
+  completed,
+  activeColor,
+  completedColor,
+}: AnimatedTaskTitleProps): JSX.Element {
+  const strikeProgress = useSharedValue(completed ? 1 : 0);
+
+  useEffect(() => {
+    strikeProgress.value = withTiming(completed ? 1 : 0, { duration: STRIKE_ANIMATION_MS });
+    return () => {
+      cancelAnimation(strikeProgress);
+    };
+  }, [completed, strikeProgress]);
+
+  const titleAnimatedStyle = useAnimatedStyle(() => ({
+    color: interpolateColor(strikeProgress.value, [0, 1], [activeColor, completedColor]),
+  }));
+
+  const lineAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleX: strikeProgress.value }],
+    opacity: strikeProgress.value,
+  }));
+
+  return (
+    <View style={styles.titleContainer}>
+      <Animated.Text style={[styles.title, titleAnimatedStyle]} numberOfLines={2}>
+        {title}
+      </Animated.Text>
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.strikeLine, { backgroundColor: completedColor }, lineAnimatedStyle]}
+      />
+    </View>
+  );
 }
 
 function TaskItemComponent({
@@ -126,18 +179,12 @@ function TaskItemComponent({
         <Ionicons name={iconName} size={26} color={iconColor} />
         <View style={styles.textGroup}>
           <View style={styles.titleRow}>
-            <Text
-              style={[
-                styles.title,
-                {
-                  color: completed ? palette.textMuted : primaryTextColor,
-                  textDecorationLine: completed ? 'line-through' : 'none',
-                },
-              ]}
-              numberOfLines={2}
-            >
-              {title}
-            </Text>
+            <AnimatedTaskTitle
+              title={title}
+              completed={completed}
+              activeColor={primaryTextColor}
+              completedColor={palette.textMuted}
+            />
             <PriorityBadge priority={item.priority} size="sm" />
           </View>
           {description ? (
@@ -242,10 +289,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
   },
-  title: {
+  titleContainer: {
     flex: 1,
+    justifyContent: 'center',
+  },
+  title: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  strikeLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: '50%',
+    height: 1.5,
+    marginTop: -0.75,
+    transformOrigin: 'left',
   },
   description: {
     fontSize: 14,

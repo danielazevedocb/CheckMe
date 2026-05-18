@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { memo } from 'react';
 import { Pressable, StyleSheet, View, Text } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -10,10 +11,10 @@ import { blendWithSurface, getReadableTextColor } from '@/utils/color';
 
 interface ChecklistCardProps {
   summary: ChecklistSummary;
-  onPress: () => void;
+  onPress: (checklistId: number) => void;
 }
 
-export function ChecklistCard({ summary, onPress }: ChecklistCardProps): JSX.Element {
+function ChecklistCardComponent({ summary, onPress }: ChecklistCardProps): JSX.Element {
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
   const isCompleted = summary.totalItems > 0 && summary.totalItems === summary.completedItems;
@@ -23,7 +24,7 @@ export function ChecklistCard({ summary, onPress }: ChecklistCardProps): JSX.Ele
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => onPress(summary.id)}
       style={({ pressed }) => [
         styles.container,
         {
@@ -74,6 +75,8 @@ export function ChecklistCard({ summary, onPress }: ChecklistCardProps): JSX.Ele
     </Pressable>
   );
 }
+
+export const ChecklistCard = memo(ChecklistCardComponent);
 
 interface InfoPillProps {
   label: string;

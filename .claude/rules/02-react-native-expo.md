@@ -1,0 +1,53 @@
+---
+description: Regras para projetos mobile com Expo e React Native
+globs:
+  - "app/**/*.ts"
+  - "app/**/*.tsx"
+  - "**/*.native.ts"
+  - "**/*.native.tsx"
+  - "src/**/*.ts"
+  - "src/**/*.tsx"
+  - "components/**/*.ts"
+  - "components/**/*.tsx"
+  - "screens/**/*.ts"
+  - "screens/**/*.tsx"
+  - "hooks/**/*.ts"
+  - "services/**/*.ts"
+  - "store/**/*.ts"
+  - "app.json"
+  - "app.config.*"
+  - "eas.json"
+  - "expo-env.d.ts"
+alwaysApply: false
+---
+
+- Use boas práticas compatíveis com Expo, React Native e TypeScript.
+- Prefira componentes pequenos, reutilizáveis e com responsabilidade única.
+- Organize o código de forma clara entre app, screens, components, hooks, services, utils, assets e stores quando fizer sentido.
+- Preserve a estrutura atual do projeto antes de criar novas pastas ou padrões.
+- Use Expo Router quando o projeto já estiver usando rotas baseadas em arquivos.
+- Mantenha nomes de telas, rotas, componentes, hooks e services claros e consistentes.
+- Evite lógica excessiva dentro de componentes visuais; extraia regras para hooks, helpers ou services.
+- Sempre trate estados de loading, erro, empty state e sucesso em telas com dados assíncronos.
+- Ao consumir APIs, centralize chamadas em services ou clients HTTP reutilizáveis.
+- Sempre trate falhas de rede, timeout, ausência de internet e respostas inesperadas da API.
+- Use tipagem clara para params de rotas, payloads, respostas de API, props e estados.
+- Evite usar `any`; prefira tipos explícitos ou inferidos com segurança.
+- Ao criar formulários, valide entradas e mostre mensagens de erro claras.
+- Considere usabilidade em telas pequenas, teclado aberto, áreas seguras e diferentes densidades de tela.
+- Use `SafeAreaView`, `KeyboardAvoidingView`, `ScrollView` ou `FlatList` quando necessário para melhorar a experiência mobile.
+- Prefira `FlatList` para listas grandes em vez de `ScrollView` com muitos itens.
+- Otimize renderizações evitando funções, objetos e arrays recriados sem necessidade em componentes pesados.
+- Use `useMemo`, `useCallback` e `React.memo` apenas quando houver ganho real de performance.
+- Mantenha estilos organizados e consistentes com o padrão do projeto.
+- Evite valores mágicos repetidos; prefira tokens, constantes ou tema quando o projeto possuir.
+- Garanta acessibilidade básica com labels, áreas de toque adequadas, contraste e feedback visual.
+- Respeite permissões nativas do dispositivo, como câmera, localização, notificações e galeria, solicitando apenas quando necessário.
+- Ao usar recursos nativos do Expo, verifique compatibilidade com Expo Go, Development Build e builds finais.
+- Não adicione bibliotecas nativas sem considerar impacto em EAS Build, Expo config plugins e compatibilidade da versão do SDK.
+- Ao alterar configurações do app, considere impacto em `app.json`, `app.config.ts`, permissões, ícones, splash screen e variáveis de ambiente.
+- Nunca exponha tokens, secrets ou chaves privadas no código do aplicativo.
+- Use variáveis de ambiente públicas apenas para dados seguros que podem ir para o client.
+- Ao implementar autenticação, considere persistência segura de sessão usando mecanismo apropriado, como SecureStore quando fizer sentido.
+- Mantenha navegação previsível, feedback claro ao usuário e ações destrutivas com confirmação.
+- Antes de propor código com bibliotecas do Expo ou React Native, consulte documentação atual via Context7 conforme a regra geral do projeto.

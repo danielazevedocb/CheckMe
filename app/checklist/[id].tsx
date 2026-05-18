@@ -2,13 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerAndroid, type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
     FlatList,
     Keyboard,
     KeyboardAvoidingView,
+    type ListRenderItemInfo,
     Modal,
     Platform,
     Pressable,
@@ -89,6 +90,11 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   const [itemsOrder, setItemsOrder] = useState<ChecklistItem[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const flatListRef = useRef<FlatList>(null);
+  const itemsOrderRef = useRef(itemsOrder);
+
+  useEffect(() => {
+    itemsOrderRef.current = itemsOrder;
+  }, [itemsOrder]);
 
   useEffect(() => {
     if (checklist) {
@@ -199,15 +205,20 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     }
   };
 
-  const handleToggleItem = async (item: ChecklistItem) => {
+  const handleToggleItem = useCallback(async (itemId: number) => {
+    const item = itemsOrderRef.current.find((entry) => entry.id === itemId);
+    if (!item) {
+      return;
+    }
+
     try {
-      await setItemDone(db, item.id, !item.done);
+      await setItemDone(db, itemId, !item.done);
       await refresh();
     } catch (err) {
       Alert.alert('Erro', 'Não foi possível atualizar o item.');
       console.error(err);
     }
-  };
+  }, [db, refresh]);
 
   const handleAddItem = async () => {
     const name = newItemName.trim();
@@ -243,7 +254,12 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     }
   };
 
-  const handleDeleteItem = (item: ChecklistItem) => {
+  const handleDeleteItem = useCallback((itemId: number) => {
+    const item = itemsOrderRef.current.find((entry) => entry.id === itemId);
+    if (!item) {
+      return;
+    }
+
     Alert.alert('Remover item', `Deseja remover "${item.name}"?`, [
       { text: 'Cancelar', style: 'cancel' },
       {
@@ -251,7 +267,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
         style: 'destructive',
         onPress: async () => {
           try {
-            await deleteItem(db, item.id);
+            await deleteItem(db, itemId);
             await refresh();
           } catch (err) {
             Alert.alert('Erro', 'Não foi possível remover o item.');
@@ -260,33 +276,50 @@ export default function ChecklistDetailsScreen(): JSX.Element {
         },
       },
     ]);
-  };
+  }, [db, refresh]);
 
-  const handleMoveItem = async (itemId: number, direction: 'up' | 'down') => {
-    if (!checklist) return;
-    
-    const currentIndex = itemsOrder.findIndex((item) => item.id === itemId);
-    if (currentIndex === -1) return;
+  const handleMoveItem = useCallback(async (itemId: number, direction: 'up' | 'down') => {
+    const currentOrder = itemsOrderRef.current;
+    const currentIndex = currentOrder.findIndex((entry) => entry.id === itemId);
+    if (currentIndex === -1) {
+      return;
+    }
 
     const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (newIndex < 0 || newIndex >= itemsOrder.length) return;
+    if (newIndex < 0 || newIndex >= currentOrder.length) {
+      return;
+    }
 
-    const newOrder = [...itemsOrder];
+    const newOrder = [...currentOrder];
     const [movedItem] = newOrder.splice(currentIndex, 1);
     newOrder.splice(newIndex, 0, movedItem);
 
     setItemsOrder(newOrder);
 
     try {
-      const newOrderIds = newOrder.map((item) => item.id);
-      await reorderItems(db, checklist.id, newOrderIds);
+      const newOrderIds = newOrder.map((entry) => entry.id);
+      await reorderItems(db, checklistId, newOrderIds);
       await refresh();
     } catch (err) {
       Alert.alert('Erro', 'Não foi possível reordenar os itens.');
       console.error(err);
-      setItemsOrder(itemsOrder);
+      setItemsOrder(currentOrder);
     }
-  };
+  }, [checklistId, db, refresh]);
+
+  const handleMoveUp = useCallback(
+    (itemId: number) => {
+      void handleMoveItem(itemId, 'up');
+    },
+    [handleMoveItem],
+  );
+
+  const handleMoveDown = useCallback(
+    (itemId: number) => {
+      void handleMoveItem(itemId, 'down');
+    },
+    [handleMoveItem],
+  );
 
   const handleDeleteChecklist = () => {
     if (!checklist) return;
@@ -309,14 +342,47 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     ]);
   };
 
-  const openEditItem = (item: ChecklistItem) => {
+  const openEditItem = useCallback((itemId: number) => {
+    const item = itemsOrderRef.current.find((entry) => entry.id === itemId);
+    if (!item) {
+      return;
+    }
+
     setEditingItem({
       id: item.id,
       name: item.name,
       price: item.price?.toString() ?? '',
       quantity: (item.quantity ?? 1).toString(),
     });
-  };
+  }, []);
+
+  const checklistMode = checklist?.mode ?? 'list';
+
+  const renderChecklistItem = useCallback(
+    ({ item, index }: ListRenderItemInfo<ChecklistItem>) => {
+      const itemCount = itemsOrderRef.current.length;
+      const canMoveUp = index > 0;
+      const canMoveDown = index < itemCount - 1;
+
+      return (
+        <ChecklistItemRow
+          item={item}
+          onToggle={handleToggleItem}
+          onEdit={openEditItem}
+          onDelete={handleDeleteItem}
+          mode={checklistMode}
+          dragEnabled={false}
+          onMoveUp={canMoveUp ? handleMoveUp : undefined}
+          onMoveDown={canMoveDown ? handleMoveDown : undefined}
+          canMoveUp={canMoveUp}
+          canMoveDown={canMoveDown}
+        />
+      );
+    },
+    [checklistMode, handleDeleteItem, handleMoveDown, handleMoveUp, handleToggleItem, openEditItem],
+  );
+
+  const keyExtractor = useCallback((item: ChecklistItem) => item.id.toString(), []);
 
   const handleSaveItemEdit = async () => {
     if (!editingItem) return;
@@ -571,26 +637,6 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     </View>
   );
 
-  const renderChecklistItem = ({ item, index }: { item: ChecklistItem; index: number }) => {
-    const canMoveUp = index > 0;
-    const canMoveDown = index < itemsOrder.length - 1;
-
-    return (
-      <ChecklistItemRow
-        item={item}
-        onToggle={() => handleToggleItem(item)}
-        onEdit={() => openEditItem(item)}
-        onDelete={() => handleDeleteItem(item)}
-        mode={checklist.mode}
-        dragEnabled={false}
-        onMoveUp={canMoveUp ? () => handleMoveItem(item.id, 'up') : undefined}
-        onMoveDown={canMoveDown ? () => handleMoveItem(item.id, 'down') : undefined}
-        canMoveUp={canMoveUp}
-        canMoveDown={canMoveDown}
-      />
-    );
-  };
-
   const renderNativeList = () => (
     <FlatList
       ref={flatListRef}
@@ -598,7 +644,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
       contentContainerStyle={styles.listContent}
       data={itemsOrder}
       extraData={refreshKey}
-      keyExtractor={(item) => item.id.toString()}
+      keyExtractor={keyExtractor}
       renderItem={renderChecklistItem}
       keyboardShouldPersistTaps="handled"
       ListHeaderComponent={renderHeader}

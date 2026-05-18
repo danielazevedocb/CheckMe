@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors } from '@/constants/theme';
@@ -9,20 +10,20 @@ import { formatCurrency } from '@/utils/format';
 
 interface ChecklistItemRowProps {
   item: ChecklistItem;
-  onToggle: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
+  onToggle: (itemId: number) => void;
+  onEdit: (itemId: number) => void;
+  onDelete: (itemId: number) => void;
   mode?: ChecklistMode;
   onDrag?: () => void;
   dragEnabled?: boolean;
   isDragging?: boolean;
-  onMoveUp?: () => void;
-  onMoveDown?: () => void;
+  onMoveUp?: (itemId: number) => void;
+  onMoveDown?: (itemId: number) => void;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
 }
 
-export function ChecklistItemRow({
+function ChecklistItemRowComponent({
   item,
   onToggle,
   onEdit,
@@ -66,7 +67,7 @@ export function ChecklistItemRow({
       accessibilityLabel={`Item ${item.name}`}
       accessibilityHint="Toque para alternar o status"
     >
-      <Pressable style={styles.mainRow} onPress={onToggle}>
+      <Pressable style={styles.mainRow} onPress={() => onToggle(item.id)}>
         <Ionicons name={iconName} size={26} color={iconColor} />
         <View style={styles.textGroup}>
           <Text
@@ -98,16 +99,16 @@ export function ChecklistItemRow({
       {showActions ? (
         <View style={styles.actions}>
           <View style={styles.moveButtons}>
-            <Pressable 
-              onPress={onMoveUp} 
+            <Pressable
+              onPress={() => onMoveUp?.(item.id)}
               disabled={!canMoveUp || !onMoveUp}
               style={[styles.moveButton, !canMoveUp && styles.moveButtonDisabled]} 
               accessibilityRole="button"
               accessibilityLabel="Mover para cima">
               <Ionicons name="chevron-up" size={20} color={canMoveUp ? accent : palette.textMuted} />
             </Pressable>
-            <Pressable 
-              onPress={onMoveDown} 
+            <Pressable
+              onPress={() => onMoveDown?.(item.id)}
               disabled={!canMoveDown || !onMoveDown}
               style={[styles.moveButton, !canMoveDown && styles.moveButtonDisabled]} 
               accessibilityRole="button"
@@ -127,10 +128,10 @@ export function ChecklistItemRow({
               <Ionicons name="reorder-three-outline" size={22} color={palette.textMuted} />
             </Pressable>
           ) : null}
-          <Pressable onPress={onEdit} style={styles.actionButton} accessibilityRole="button">
+          <Pressable onPress={() => onEdit(item.id)} style={styles.actionButton} accessibilityRole="button">
             <Text style={[styles.actionLabel, { color: accent }]}>Editar</Text>
           </Pressable>
-          <Pressable onPress={onDelete} style={styles.actionButton} accessibilityRole="button">
+          <Pressable onPress={() => onDelete(item.id)} style={styles.actionButton} accessibilityRole="button">
             <Text style={[styles.actionLabel, { color: palette.destructive }]}>Remover</Text>
           </Pressable>
         </View>
@@ -138,6 +139,8 @@ export function ChecklistItemRow({
     </View>
   );
 }
+
+export const ChecklistItemRow = memo(ChecklistItemRowComponent);
 
 const styles = StyleSheet.create({
   container: {

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, FlatList, type ListRenderItemInfo, RefreshControl, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { ChecklistCard } from '@/components/checklist/checklist-card';
@@ -8,6 +8,17 @@ import { SearchBar } from '@/components/ui/search-bar';
 import { Colors } from '@/constants/theme';
 import { useThemeMode } from '@/contexts/theme-context';
 import { useChecklists } from '@/hooks/use-checklists';
+import type { ChecklistSummary } from '@/types/checklist';
+
+function ListSeparator(): JSX.Element {
+  return <View style={listSeparatorStyles.separator} />;
+}
+
+const listSeparatorStyles = StyleSheet.create({
+  separator: {
+    height: 8,
+  },
+});
 
 export default function ConcluidasScreen(): JSX.Element {
   const router = useRouter();
@@ -15,6 +26,22 @@ export default function ConcluidasScreen(): JSX.Element {
   const palette = Colors[resolved];
   const [search, setSearch] = useState('');
   const { data, loading, refresh, error } = useChecklists('completed', search);
+
+  const openChecklist = useCallback(
+    (checklistId: number) => {
+      router.push(`/checklist/${checklistId}`);
+    },
+    [router],
+  );
+
+  const renderItem = useCallback(
+    ({ item }: ListRenderItemInfo<ChecklistSummary>) => (
+      <ChecklistCard summary={item} onPress={openChecklist} />
+    ),
+    [openChecklist],
+  );
+
+  const keyExtractor = useCallback((item: ChecklistSummary) => item.id.toString(), []);
 
   return (
     <View style={[styles.container, { backgroundColor: palette.background }]} accessibilityLabel="Listas concluídas">
@@ -34,12 +61,10 @@ export default function ConcluidasScreen(): JSX.Element {
       ) : (
         <FlatList
           data={data}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <ChecklistCard summary={item} onPress={() => router.push(`/checklist/${item.id}`)} />
-          )}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
           contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ItemSeparatorComponent={ListSeparator}
           refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={palette.text} />}
           ListFooterComponent={<View style={{ height: 48 }} />}
         />

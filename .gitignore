@@ -54,3 +54,12 @@ app-example
 # generated native folders
 /ios
 /android
+
+.claude/
+
+.playwright-mcp/
+
+usability/
+
+.agents/
+

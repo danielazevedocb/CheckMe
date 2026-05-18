@@ -25,16 +25,10 @@ export interface TaskItemProps {
   onSwipeDelete?: (itemId: number) => void;
   accentColor?: string;
   mode?: ChecklistMode;
-  onDrag?: () => void;
-  dragEnabled?: boolean;
-  isDragging?: boolean;
   swipeEnabled?: boolean;
   onSwipeableWillOpen?: (itemId: number) => void;
   onSwipeableRef?: (itemId: number, ref: SwipeableMethods | null) => void;
-  onMoveUp?: (itemId: number) => void;
-  onMoveDown?: (itemId: number) => void;
-  canMoveUp?: boolean;
-  canMoveDown?: boolean;
+  shoppingMode?: boolean;
 }
 
 function getTaskTitle(item: ChecklistItem | Task): string {
@@ -99,16 +93,10 @@ function TaskItemComponent({
   onSwipeDelete,
   accentColor,
   mode = 'list',
-  onDrag,
-  dragEnabled = false,
-  isDragging = false,
   swipeEnabled = true,
   onSwipeableWillOpen,
   onSwipeableRef,
-  onMoveUp,
-  onMoveDown,
-  canMoveUp = false,
-  canMoveDown = false,
+  shoppingMode = false,
 }: TaskItemProps): JSX.Element {
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
@@ -123,6 +111,8 @@ function TaskItemComponent({
   const primaryTextColor =
     resolved === 'dark' ? getReadableTextColor(accent, palette.text, '#FFFFFF') : palette.text;
   const showActions = mode === 'list';
+  const quantity = 'quantity' in item ? (item as ChecklistItem).quantity ?? 1 : 1;
+  const price = 'price' in item ? (item as ChecklistItem).price ?? null : null;
 
   const handleTogglePress = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -168,7 +158,7 @@ function TaskItemComponent({
     <View
       style={[
         styles.container,
-        { backgroundColor: backgroundTint, borderColor: accent, opacity: isDragging ? 0.85 : 1 },
+        { backgroundColor: backgroundTint, borderColor: accent },
       ]}
       accessibilityLabel={`Tarefa ${title}`}
     >
@@ -184,7 +174,7 @@ function TaskItemComponent({
             />
             <PriorityBadge priority={item.priority} size="sm" />
           </View>
-          {description ? (
+          {description && !shoppingMode ? (
             <Text
               style={[styles.description, { color: palette.textMuted }]}
               numberOfLines={2}
@@ -192,42 +182,23 @@ function TaskItemComponent({
               {description}
             </Text>
           ) : null}
+          {shoppingMode ? (
+            <View style={styles.shoppingRow}>
+              <Text style={[styles.shoppingQty, { color: palette.textMuted }]}>
+                {quantity}x
+              </Text>
+              {price != null ? (
+                <Text style={[styles.shoppingPrice, { color: palette.textMuted }]}>
+                  {'R$ '}{price.toFixed(2)}
+                  {quantity > 1 ? ` = R$ ${(quantity * price).toFixed(2)}` : ''}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
         </View>
       </Pressable>
       {showActions ? (
         <View style={styles.actions}>
-          <View style={styles.moveButtons}>
-            <Pressable
-              onPress={() => onMoveUp?.(item.id)}
-              disabled={!canMoveUp || !onMoveUp}
-              style={[styles.moveButton, !canMoveUp && styles.moveButtonDisabled]}
-              accessibilityRole="button"
-              accessibilityLabel="Mover para cima"
-            >
-              <Ionicons name="chevron-up" size={20} color={canMoveUp ? accent : palette.textMuted} />
-            </Pressable>
-            <Pressable
-              onPress={() => onMoveDown?.(item.id)}
-              disabled={!canMoveDown || !onMoveDown}
-              style={[styles.moveButton, !canMoveDown && styles.moveButtonDisabled]}
-              accessibilityRole="button"
-              accessibilityLabel="Mover para baixo"
-            >
-              <Ionicons name="chevron-down" size={20} color={canMoveDown ? accent : palette.textMuted} />
-            </Pressable>
-          </View>
-          {dragEnabled ? (
-            <Pressable
-              onLongPress={onDrag}
-              delayLongPress={150}
-              disabled={!onDrag}
-              style={styles.dragHandle}
-              accessibilityRole="button"
-              accessibilityLabel="Reordenar tarefa"
-            >
-              <Ionicons name="reorder-three-outline" size={22} color={palette.textMuted} />
-            </Pressable>
-          ) : null}
           <Pressable onPress={() => onEdit(item.id)} style={styles.actionButton} accessibilityRole="button">
             <Text style={[styles.actionLabel, { color: accent }]}>Editar</Text>
           </Pressable>
@@ -246,7 +217,7 @@ function TaskItemComponent({
   return (
     <Swipeable
       ref={swipeableRef}
-      enabled={swipeEnabled && !isDragging}
+      enabled={swipeEnabled}
       overshootRight={false}
       friction={2}
       rightThreshold={40}
@@ -307,23 +278,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  shoppingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  shoppingQty: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  shoppingPrice: {
+    fontSize: 13,
+  },
   actions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  moveButtons: {
-    flexDirection: 'row',
     gap: 4,
-  },
-  moveButton: {
-    padding: 4,
-  },
-  moveButtonDisabled: {
-    opacity: 0.3,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
   },
   actionButton: {
     paddingVertical: 4,
@@ -332,10 +305,6 @@ const styles = StyleSheet.create({
   actionLabel: {
     fontSize: 14,
     fontWeight: '500',
-  },
-  dragHandle: {
-    paddingVertical: 4,
-    paddingHorizontal: 4,
   },
   deleteAction: {
     justifyContent: 'center',

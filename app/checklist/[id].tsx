@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
@@ -5,8 +6,10 @@ import { type ComponentRef, useCallback, useEffect, useMemo, useRef, useState } 
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Keyboard,
   KeyboardAvoidingView,
+  type ListRenderItemInfo,
   Modal,
   Platform,
   Pressable,
@@ -15,10 +18,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import DraggableFlatList, {
-  ScaleDecorator,
-  type RenderItemParams,
-} from 'react-native-draggable-flatlist';
 import type { SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import { ProgressBar } from '@/components/checklist/progress-bar';
@@ -33,7 +32,7 @@ import { useDatabase } from '@/contexts/database-context';
 import { useThemeMode } from '@/contexts/theme-context';
 import { useChecklist } from '@/hooks/use-checklist';
 import { deleteChecklist } from '@/repositories/checklist-repository';
-import { createItem, deleteItem, reorderItems, setItemDone, updateItem } from '@/repositories/item-repository';
+import { createItem, deleteItem, setItemDone, updateItem } from '@/repositories/item-repository';
 import type { ChecklistItem, TaskPriority } from '@/types/checklist';
 
 type PriorityFilter = 'ALL' | TaskPriority;
@@ -71,17 +70,14 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   });
 
   const [itemsOrder, setItemsOrder] = useState<ChecklistItem[]>([]);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
   const [taskModal, setTaskModal] = useState<TaskModalState | null>(null);
   const [savingTask, setSavingTask] = useState(false);
 
-  const draggableListRef = useRef<ComponentRef<typeof DraggableFlatList<ChecklistItem>> | null>(null);
+  const flatListRef = useRef<ComponentRef<typeof FlatList<ChecklistItem>> | null>(null);
   const itemsOrderRef = useRef(itemsOrder);
   const swipeableRefs = useRef<Record<number, SwipeableMethods | null>>({});
 
   const accentColor = checklist?.color ?? palette.primary;
-  const dragEnabled = priorityFilter === 'ALL' && taskModal === null;
 
   useEffect(() => {
     itemsOrderRef.current = itemsOrder;
@@ -105,7 +101,6 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   useEffect(() => {
     if (checklist) {
       setItemsOrder(checklist.items);
-      setRefreshKey((prev) => prev + 1);
     } else {
       setItemsOrder([]);
     }
@@ -114,7 +109,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
       setTimeout(() => {
-        draggableListRef.current?.scrollToEnd({ animated: true });
+        flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     });
 
@@ -122,6 +117,8 @@ export default function ChecklistDetailsScreen(): JSX.Element {
       keyboardDidShowListener.remove();
     };
   }, []);
+
+  const isShoppingMode = checklist?.type === 'shopping';
 
   const taskFormInitial = useMemo((): Partial<TaskFormValues> | undefined => {
     if (!taskModal || taskModal.mode === 'create') {
@@ -132,6 +129,8 @@ export default function ChecklistDetailsScreen(): JSX.Element {
       title: taskModal.item.title,
       description: taskModal.item.description ?? '',
       priority: taskModal.item.priority,
+      quantity: taskModal.item.quantity ?? 1,
+      price: taskModal.item.price ?? null,
     };
   }, [taskModal]);
 
@@ -250,34 +249,6 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     }
   }, []);
 
-  const handleDragBegin = useCallback(() => {
-    setIsDragging(true);
-    Object.values(swipeableRefs.current).forEach((ref) => {
-      ref?.close();
-    });
-  }, []);
-
-  const handleDragEnd = useCallback(
-    async ({ data }: { data: ChecklistItem[] }) => {
-      setIsDragging(false);
-      const previousOrder = itemsOrderRef.current;
-      setItemsOrder(data);
-
-      try {
-        await reorderItems(
-          db,
-          checklistId,
-          data.map((entry) => entry.id),
-        );
-        await refresh();
-      } catch (err) {
-        Alert.alert('Erro', 'Não foi possível reordenar as tarefas.');
-        console.error(err);
-        setItemsOrder(previousOrder);
-      }
-    },
-    [checklistId, db, refresh],
-  );
 
   const handleTaskSubmit = useCallback(
     async (values: TaskFormValues) => {
@@ -288,6 +259,8 @@ export default function ChecklistDetailsScreen(): JSX.Element {
             title: values.title,
             description: values.description || null,
             priority: values.priority,
+            quantity: values.quantity,
+            price: values.price,
           });
         } else {
           await createItem(db, {
@@ -295,6 +268,8 @@ export default function ChecklistDetailsScreen(): JSX.Element {
             title: values.title,
             description: values.description || null,
             priority: values.priority,
+            quantity: values.quantity,
+            price: values.price,
           });
         }
 
@@ -315,41 +290,34 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     [checklistId, db, refresh, taskModal],
   );
 
-  const renderDraggableItem = useCallback(
-    ({ item, drag, isActive }: RenderItemParams<ChecklistItem>) => (
-      <ScaleDecorator activeScale={1.02}>
-        <TaskItem
-          item={item}
-          accentColor={accentColor}
-          onToggle={handleToggleItem}
-          onEdit={openEditItem}
-          onDelete={handleDeleteItem}
-          onSwipeDelete={handleSwipeDeleteItem}
-          dragEnabled={dragEnabled}
-          onDrag={drag}
-          isDragging={isActive}
-          swipeEnabled={dragEnabled && !isDragging && !isActive}
-          onSwipeableWillOpen={closeOtherSwipeables}
-          onSwipeableRef={handleSwipeableRef}
-        />
-      </ScaleDecorator>
+  const renderItem = useCallback(
+    ({ item }: ListRenderItemInfo<ChecklistItem>) => (
+      <TaskItem
+        item={item}
+        accentColor={accentColor}
+        onToggle={handleToggleItem}
+        onEdit={openEditItem}
+        onDelete={handleDeleteItem}
+        onSwipeDelete={handleSwipeDeleteItem}
+        swipeEnabled
+        onSwipeableWillOpen={closeOtherSwipeables}
+        onSwipeableRef={handleSwipeableRef}
+        shoppingMode={isShoppingMode}
+      />
     ),
     [
       accentColor,
       closeOtherSwipeables,
-      dragEnabled,
       handleDeleteItem,
       handleSwipeDeleteItem,
       handleSwipeableRef,
       handleToggleItem,
-      isDragging,
+      isShoppingMode,
       openEditItem,
     ],
   );
 
   const keyExtractor = useCallback((item: ChecklistItem) => item.id.toString(), []);
-
-  const hasTasks = itemsOrder.length > 0;
 
   if (!Number.isFinite(checklistId)) {
     return (
@@ -405,9 +373,25 @@ export default function ChecklistDetailsScreen(): JSX.Element {
           total={checklist.totalItems}
           showPercent
         />
+        {isShoppingMode ? (() => {
+          const grandTotal = itemsOrder.reduce((sum, item) => {
+            const qty = item.quantity ?? 1;
+            const p = item.price ?? null;
+            return p != null ? sum + qty * p : sum;
+          }, 0);
+          return grandTotal > 0 ? (
+            <View style={styles.totalRow}>
+              <ThemedText style={[styles.totalLabel, { color: palette.textMuted }]}>Total estimado</ThemedText>
+              <ThemedText type="defaultSemiBold" style={{ color: palette.text }}>
+                R$ {grandTotal.toFixed(2)}
+              </ThemedText>
+            </View>
+          ) : null;
+        })() : null}
       </View>
 
-      <View style={styles.filterRow} accessibilityRole="tablist">
+      {!isShoppingMode ? (
+        <View style={styles.filterRow} accessibilityRole="tablist">
         {PRIORITY_FILTERS.map((filter) => {
           const selected = priorityFilter === filter.value;
           return (
@@ -434,35 +418,51 @@ export default function ChecklistDetailsScreen(): JSX.Element {
             </Pressable>
           );
         })}
-      </View>
-
-      {priorityFilter !== 'ALL' ? (
-        <ThemedText style={[styles.filterHint, { color: palette.textMuted }]}>
-          Reordenar tarefas está disponível com o filtro &quot;Todas&quot;.
-        </ThemedText>
+        </View>
       ) : null}
+
     </View>
   );
 
   const renderFooter = () => (
     <View style={styles.footer}>
-      <Button label="Adicionar tarefa" onPress={() => setTaskModal({ mode: 'create' })} />
       <Button
-        label="Editar checklist"
-        variant="secondary"
-        onPress={() => router.push(`/checklist/edit/${checklistId}`)}
+        label={isShoppingMode ? 'Adicionar item' : 'Adicionar tarefa'}
+        icon={<Ionicons name="add" size={18} color={palette.primaryForeground} />}
+        onPress={() => setTaskModal({ mode: 'create' })}
       />
-      <Button label="Remover checklist" variant="danger" onPress={handleDeleteChecklist} />
+      <View style={styles.footerActions}>
+        <Button
+          label="Editar"
+          variant="secondary"
+          icon={<Ionicons name="pencil-outline" size={16} color={palette.text} />}
+          style={styles.footerActionBtn}
+          onPress={() => router.push(`/checklist/edit/${checklistId}`)}
+        />
+        <Button
+          label="Remover"
+          variant="danger"
+          icon={<Ionicons name="trash-outline" size={16} color={palette.primaryForeground} />}
+          style={styles.footerActionBtn}
+          onPress={handleDeleteChecklist}
+        />
+      </View>
     </View>
   );
 
-  const listEmptyComponent =
-    priorityFilter === 'ALL' ? (
+  const renderEmpty = () => {
+    if (isShoppingMode) {
+      return (
+        <EmptyState
+          title="Nenhum item ainda"
+          description="Adicione o primeiro item à sua lista de mercado."
+        />
+      );
+    }
+    return priorityFilter === 'ALL' ? (
       <EmptyState
         title="Nenhuma tarefa ainda"
         description="Adicione a primeira tarefa para começar."
-        actionLabel="Adicionar tarefa"
-        onPressAction={() => setTaskModal({ mode: 'create' })}
       />
     ) : (
       <EmptyState
@@ -470,8 +470,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
         description='Altere o filtro para "Todas" ou crie uma tarefa com esta prioridade.'
       />
     );
-
-  const scrollContentStyle = [styles.listContent, styles.listContentGrow];
+  };
 
   return (
     <View style={[styles.screen, { backgroundColor: palette.background }]}>
@@ -479,36 +478,20 @@ export default function ChecklistDetailsScreen(): JSX.Element {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}>
-        {hasTasks ? (
-          <DraggableFlatList
-            ref={draggableListRef}
-            style={styles.flex}
-            contentContainerStyle={styles.listContent}
-            keyboardShouldPersistTaps="handled"
-            ListHeaderComponent={renderHeader}
-            ListFooterComponent={renderFooter}
-            accessibilityLabel={`Checklist ${checklist.title}`}
-            showsVerticalScrollIndicator={false}
-            data={itemsOrder}
-            extraData={`${refreshKey}-${priorityFilter}-${isDragging}`}
-            keyExtractor={keyExtractor}
-            renderItem={renderDraggableItem}
-            onDragBegin={dragEnabled ? handleDragBegin : undefined}
-            onDragEnd={dragEnabled ? handleDragEnd : undefined}
-            activationDistance={dragEnabled ? 8 : 9999}
-          />
-        ) : (
-          <ScrollView
-            style={styles.flex}
-            contentContainerStyle={scrollContentStyle}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            accessibilityLabel={`Checklist ${checklist.title}`}>
-            {renderHeader()}
-            {listEmptyComponent}
-            {renderFooter()}
-          </ScrollView>
-        )}
+        <FlatList
+          ref={flatListRef}
+          style={styles.flex}
+          contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={renderHeader}
+          ListFooterComponent={renderFooter}
+          ListEmptyComponent={renderEmpty}
+          accessibilityLabel={`Checklist ${checklist.title}`}
+          showsVerticalScrollIndicator={false}
+          data={itemsOrder}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+        />
       </KeyboardAvoidingView>
 
       {taskModal === null ? (
@@ -523,23 +506,42 @@ export default function ChecklistDetailsScreen(): JSX.Element {
         visible={taskModal !== null}
         animationType="slide"
         onRequestClose={() => setTaskModal(null)}>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setTaskModal(null)} />
           <View
-            style={[styles.modalContent, { backgroundColor: palette.surface }]}
+            style={[styles.modalSheet, { backgroundColor: palette.surface }]}
             accessibilityLabel={taskModal?.mode === 'edit' ? 'Editar tarefa' : 'Nova tarefa'}>
-            <ThemedText type="subtitle">
-              {taskModal?.mode === 'edit' ? 'Editar tarefa' : 'Nova tarefa'}
-            </ThemedText>
-            <TaskForm
-              key={taskModal?.mode === 'edit' ? taskModal.item.id : 'create'}
-              initialValues={taskFormInitial}
-              submitLabel={taskModal?.mode === 'edit' ? 'Salvar alterações' : 'Adicionar tarefa'}
-              onSubmit={handleTaskSubmit}
-              onCancel={() => setTaskModal(null)}
-              loading={savingTask}
-            />
+            <View style={styles.sheetHandle} />
+            <View style={[styles.sheetHeader, { borderBottomColor: palette.border }]}>
+              <ThemedText type="subtitle" style={styles.sheetTitle}>
+                {taskModal?.mode === 'edit'
+                  ? isShoppingMode
+                    ? 'Editar item'
+                    : 'Editar tarefa'
+                  : isShoppingMode
+                    ? 'Novo item'
+                    : 'Nova tarefa'}
+              </ThemedText>
+            </View>
+            <ScrollView
+              style={styles.sheetScroll}
+              contentContainerStyle={styles.sheetScrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}>
+              <TaskForm
+                key={taskModal?.mode === 'edit' ? taskModal.item.id : 'create'}
+                initialValues={taskFormInitial}
+                submitLabel={taskModal?.mode === 'edit' ? 'Salvar alterações' : isShoppingMode ? 'Adicionar item' : 'Adicionar tarefa'}
+                onSubmit={handleTaskSubmit}
+                onCancel={() => setTaskModal(null)}
+                loading={savingTask}
+                shoppingMode={isShoppingMode}
+              />
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -557,8 +559,6 @@ const styles = StyleSheet.create({
     paddingBottom: 96,
     paddingTop: 16,
     gap: 16,
-  },
-  listContentGrow: {
     flexGrow: 1,
   },
   centered: {
@@ -584,6 +584,15 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
     padding: 16,
+    gap: 12,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  totalLabel: {
+    fontSize: 13,
   },
   filterRow: {
     flexDirection: 'row',
@@ -600,26 +609,55 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  filterHint: {
-    fontSize: 13,
-  },
   footer: {
-    gap: 12,
+    gap: 10,
     marginTop: 8,
+  },
+  footerActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  footerActionBtn: {
+    flex: 1,
   },
   headerAction: {
     paddingHorizontal: 16,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
-    justifyContent: 'center',
-    padding: 24,
+    justifyContent: 'flex-end',
   },
-  modalContent: {
-    borderRadius: 16,
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(2, 6, 23, 0.6)',
+  },
+  modalSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+    maxHeight: '92%',
+  },
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(148, 163, 184, 0.4)',
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  sheetHeader: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  sheetTitle: {
+    fontSize: 18,
+  },
+  sheetScroll: {
+    flexShrink: 1,
+  },
+  sheetScrollContent: {
     padding: 20,
-    gap: 16,
-    maxHeight: '90%',
   },
 });

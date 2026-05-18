@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import {
   FlatList,
   type ListRenderItemInfo,
+  Modal,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -9,8 +10,11 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { ThemedText } from '@/components/themed-text';
 
 import { ChecklistCard } from '@/components/checklist/checklist-card';
+import { useDatabase } from '@/contexts/database-context';
+import { markAllItemsDone } from '@/repositories/item-repository';
 import { ChecklistCardSkeleton } from '@/components/checklist/checklist-card-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FloatingActionButton } from '@/components/ui/fab';
@@ -62,6 +66,7 @@ function getEmptyCopy(status: ChecklistStatus): { title: string; description: st
 
 export default function HomeScreen(): JSX.Element {
   const router = useRouter();
+  const db = useDatabase();
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
   const [statusFilter, setStatusFilter] = useState<ChecklistStatus>('all');
@@ -69,7 +74,12 @@ export default function HomeScreen(): JSX.Element {
   const debouncedSearch = useDebouncedValue(searchInput, 300);
   const { data, loading, refresh, error } = useChecklists(statusFilter, debouncedSearch);
 
-  const emptyCopy = useMemo(() => getEmptyCopy(statusFilter), [statusFilter]);
+  const emptyCopy = useMemo(() => {
+    if (error) {
+      return { title: 'Falha ao carregar', description: 'Toque para tentar novamente.', showCreate: false, isError: true };
+    }
+    return { ...getEmptyCopy(statusFilter), isError: false };
+  }, [statusFilter, error]);
 
   const openChecklist = useCallback(
     (checklistId: number) => {
@@ -78,15 +88,34 @@ export default function HomeScreen(): JSX.Element {
     [router],
   );
 
-  const goToNewChecklist = useCallback(() => {
-    router.push('/(tabs)/nova');
+  const [typeModalVisible, setTypeModalVisible] = useState(false);
+
+  const goToNewChecklist = useCallback((type?: 'task' | 'shopping') => {
+    setTypeModalVisible(false);
+    if (type) {
+      router.push(`/(tabs)/nova?type=${type}`);
+    } else {
+      router.push('/(tabs)/nova');
+    }
   }, [router]);
+
+  const handleToggleComplete = useCallback(
+    async (checklistId: number, currentlyCompleted: boolean) => {
+      try {
+        await markAllItemsDone(db, checklistId, !currentlyCompleted);
+        await refresh();
+      } catch (err) {
+        console.error(err);
+      }
+    },
+    [db, refresh],
+  );
 
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<ChecklistSummary>) => (
-      <ChecklistCard summary={item} onPress={openChecklist} />
+      <ChecklistCard summary={item} onPress={openChecklist} onToggleComplete={handleToggleComplete} />
     ),
-    [openChecklist],
+    [openChecklist, handleToggleComplete],
   );
 
   const keyExtractor = useCallback((item: ChecklistSummary) => item.id.toString(), []);
@@ -130,14 +159,12 @@ export default function HomeScreen(): JSX.Element {
           <ChecklistCardSkeleton />
           <ChecklistCardSkeleton />
         </View>
-      ) : null}
-
-      {!loading && data.length === 0 ? (
+      ) : data.length === 0 ? (
         <EmptyState
           title={emptyCopy.title}
           description={emptyCopy.description}
-          actionLabel={emptyCopy.showCreate ? 'Nova checklist' : undefined}
-          onPressAction={emptyCopy.showCreate ? goToNewChecklist : undefined}
+          actionLabel={emptyCopy.isError ? 'Tentar de novo' : emptyCopy.showCreate ? 'Nova checklist' : undefined}
+          onPressAction={emptyCopy.isError ? refresh : emptyCopy.showCreate ? () => setTypeModalVisible(true) : undefined}
         />
       ) : (
         <FlatList
@@ -151,18 +178,37 @@ export default function HomeScreen(): JSX.Element {
         />
       )}
 
-      {error ? (
-        <View style={styles.errorWrapper}>
-          <EmptyState
-            title="Falha ao carregar"
-            description="Verifique os dados e tente novamente."
-            actionLabel="Tentar de novo"
-            onPressAction={refresh}
-          />
-        </View>
-      ) : null}
+      <FloatingActionButton onPress={() => setTypeModalVisible(true)} accessibilityLabel="Criar nova checklist" />
 
-      <FloatingActionButton onPress={goToNewChecklist} accessibilityLabel="Criar nova checklist" />
+      <Modal
+        transparent
+        visible={typeModalVisible}
+        animationType="slide"
+        onRequestClose={() => setTypeModalVisible(false)}>
+        <Pressable style={[styles.modalBackdrop, { backgroundColor: palette.overlay }]} onPress={() => setTypeModalVisible(false)}>
+          <Pressable style={[styles.typeSheet, { backgroundColor: palette.surface }]}>
+            <ThemedText type="subtitle" style={styles.sheetTitle}>Nova checklist</ThemedText>
+            <Pressable
+              onPress={() => goToNewChecklist('task')}
+              style={[styles.typeOption, { borderColor: palette.border }]}>
+              <Text style={styles.typeOptionIcon}>✅</Text>
+              <View style={styles.typeOptionText}>
+                <ThemedText type="defaultSemiBold">Dia a dia</ThemedText>
+                <ThemedText style={{ color: palette.textMuted, fontSize: 13 }}>Tarefas com prioridade (alta / média / baixa)</ThemedText>
+              </View>
+            </Pressable>
+            <Pressable
+              onPress={() => goToNewChecklist('shopping')}
+              style={[styles.typeOption, { borderColor: palette.border }]}>
+              <Text style={styles.typeOptionIcon}>🛒</Text>
+              <View style={styles.typeOptionText}>
+                <ThemedText type="defaultSemiBold">Lista de mercado</ThemedText>
+                <ThemedText style={{ color: palette.textMuted, fontSize: 13 }}>Itens com quantidade, preço e total automático</ThemedText>
+              </View>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -198,10 +244,33 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     gap: 8,
   },
-  errorWrapper: {
-    position: 'absolute',
-    bottom: 140,
-    left: 16,
-    right: 16,
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  typeSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    gap: 16,
+    paddingBottom: 40,
+  },
+  sheetTitle: {
+    marginBottom: 4,
+  },
+  typeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  typeOptionIcon: {
+    fontSize: 28,
+  },
+  typeOptionText: {
+    flex: 1,
+    gap: 2,
   },
 });

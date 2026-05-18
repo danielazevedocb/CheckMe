@@ -1,5 +1,7 @@
 export type ChecklistStatus = 'all' | 'open' | 'completed';
 
+export type ChecklistType = 'task' | 'shopping';
+
 export type TaskPriority = 'HIGH' | 'MEDIUM' | 'LOW';
 
 export const DEFAULT_TASK_PRIORITY: TaskPriority = 'MEDIUM';
@@ -13,6 +15,8 @@ export interface Task {
   completed: boolean;
   position: number;
   createdAt: number;
+  quantity: number;
+  price: number | null;
 }
 
 /**
@@ -23,10 +27,6 @@ export interface ChecklistItem extends Task {
   name: string;
   /** @deprecated Use `completed` */
   done: boolean;
-  /** @deprecated Shopping mode only — removed in v2.0 */
-  price: number | null;
-  /** @deprecated Shopping mode only — removed in v2.0 */
-  quantity: number;
   /** @deprecated Item-level color; prefer checklist color in v2.0 */
   color: string;
 }
@@ -37,6 +37,7 @@ export interface Checklist {
   createdAt: number;
   color?: string;
   icon?: string;
+  type: ChecklistType;
 }
 
 /** @deprecated List vs text modes removed in v2.0 */
@@ -70,12 +71,12 @@ export interface ChecklistSummary extends ChecklistRecord {
   completedAmount: number;
 }
 
-export function computeChecklistProgressPercent(totalItems: number, completedItems: number): number {
-  if (totalItems <= 0) {
+export function computeChecklistProgressPercent(completed: number, total: number): number {
+  if (total <= 0) {
     return 0;
   }
 
-  return Math.round((completedItems / totalItems) * 100);
+  return Math.round((completed / total) * 100);
 }
 
 export interface ChecklistWithItems extends ChecklistSummary {
@@ -91,6 +92,7 @@ export type ChecklistRow = {
   created_at: number;
   color: string;
   icon?: string | null;
+  type?: string | null;
   /** @deprecated Removed in schema v5 — present only on pre-migration reads */
   mode?: ChecklistMode;
   /** @deprecated Removed in schema v5 */
@@ -106,10 +108,8 @@ export type ChecklistItemRow = {
   priority?: string | null;
   description?: string | null;
   created_at?: number | null;
-  /** @deprecated Removed in schema v5 */
-  price?: number | null;
-  /** @deprecated Removed in schema v5 */
   quantity?: number | null;
+  price?: number | null;
   /** @deprecated Removed in schema v5 */
   color?: string;
 };
@@ -129,6 +129,7 @@ export function mapChecklistRow(row: ChecklistRow): ChecklistRecord {
     createdAt: row.created_at,
     color: row.color,
     icon: row.icon ?? undefined,
+    type: row.type === 'shopping' ? 'shopping' : 'task',
     mode: row.mode ?? 'list',
     scheduledFor: row.scheduled_for ?? null,
   };
@@ -152,10 +153,10 @@ export function mapTaskFromRow(row: ChecklistItemRow, fallbackPosition: number):
     completed,
     position,
     createdAt: row.created_at ?? 0,
+    quantity: row.quantity ?? 1,
+    price: row.price ?? null,
     name: title,
     done: completed,
-    price: row.price ?? null,
-    quantity: row.quantity ?? 1,
     color: row.color ?? '#2563EB',
   };
 }
@@ -172,10 +173,6 @@ export type ChecklistItemUpdate = TaskUpdate &
     name: string;
     /** @deprecated Use `completed` */
     done: boolean;
-    /** @deprecated */
-    price: number | null;
-    /** @deprecated */
-    quantity: number;
     /** @deprecated */
     color: string;
   }>;

@@ -12,9 +12,10 @@ import { blendWithSurface } from '@/utils/color';
 interface ChecklistCardProps {
   summary: ChecklistSummary;
   onPress: (checklistId: number) => void;
+  onToggleComplete?: (checklistId: number, currentlyCompleted: boolean) => void;
 }
 
-function ChecklistCardComponent({ summary, onPress }: ChecklistCardProps): JSX.Element {
+function ChecklistCardComponent({ summary, onPress, onToggleComplete }: ChecklistCardProps): JSX.Element {
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
   const isCompleted =
@@ -48,11 +49,27 @@ function ChecklistCardComponent({ summary, onPress }: ChecklistCardProps): JSX.E
             {summary.title}
           </ThemedText>
         </View>
-        <Ionicons
-          name={isCompleted ? 'checkmark-circle' : 'ellipse-outline'}
-          size={20}
-          color={isCompleted ? palette.success : palette.textMuted}
-        />
+        {onToggleComplete && summary.totalItems > 0 ? (
+          <Pressable
+            onPress={() => onToggleComplete(summary.id, isCompleted)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: isCompleted }}
+            accessibilityLabel={isCompleted ? 'Marcar como incompleto' : 'Marcar como concluído'}
+            hitSlop={8}
+          >
+            <Ionicons
+              name={isCompleted ? 'checkmark-circle' : 'ellipse-outline'}
+              size={22}
+              color={isCompleted ? palette.success : palette.textMuted}
+            />
+          </Pressable>
+        ) : (
+          <Ionicons
+            name={isCompleted ? 'checkmark-circle' : 'ellipse-outline'}
+            size={22}
+            color={isCompleted ? palette.success : palette.textMuted}
+          />
+        )}
       </View>
 
       <ProgressBar

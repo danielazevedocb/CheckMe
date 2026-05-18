@@ -1,28 +1,31 @@
 # PRD — CheckMe
 
-**Versão**: 1.1  
+**Versão**: 2.0  
 **Data**: 2026-05-18  
 **Autor**: Daniel Azevedo  
-**Status**: v1.1 implementada — validação Android e release pendentes
+**Status**: Redefinição de produto — implementação v2.0 em andamento (código ainda parcialmente em modelo v1.x; ver TASKS.md)
 
 ---
 
 ## 1. Visão Geral
 
-CheckMe é um aplicativo mobile de gerenciamento de checklists e planejamento diário, focado em uso **offline-first** e totalmente local. O usuário cria, organiza e acompanha suas listas e seu dia diretamente no dispositivo, sem necessidade de conta ou conexão com internet.
+CheckMe é um aplicativo mobile de **checklists com tarefas priorizadas**, focado em uso **offline-first** e totalmente local. O usuário organiza a vida em múltiplas listas (Estudos, Trabalho, Academia, Compras, Casa…) e, dentro de cada uma, gerencia tarefas com prioridade individual — sem cadastro, sem nuvem, sem internet.
 
-Os diferenciais são: flexibilidade nos modos de entrada (lista estruturada ou texto livre), rastreamento financeiro por item (preço × quantidade), agendamento de datas por lista, e um **Planner Diário** inspirado em planners físicos — com seções de prioridades, lembretes, tarefas do dia e anotações livres.
+A estética é **minimalista e moderna**, com **dark mode como padrão**: fundo escuro, cards discretos, bordas suaves, tipografia limpa e espaçamento confortável — inspirado em planners físicos, mas com a clareza de apps como Todoist e TickTick.
+
+**Fora da visão atual:** o antigo “Planner Diário” com seções fixas (Prioridades, Para Amanhã, Não Esquecer) não faz mais parte do produto. Prioridade passa a ser atributo de cada **tarefa**, não de uma seção do dia.
 
 ---
 
 ## 2. Problema
 
-Usuários precisam de dois tipos de ferramenta que hoje vivem em apps separados:
+Usuários precisam de uma ferramenta simples para:
 
-1. **Checklists funcionais** — para compras, tarefas pontuais, rotinas — sem fricção de cadastro e com controle de valor total.
-2. **Planejador diário** — para estruturar o dia com prioridades, lembretes e anotações, como um planner de papel mas sempre no celular.
+1. **Separar contextos da vida** — estudo, trabalho, compras, casa — em listas distintas, sem misturar tudo numa inbox gigante.
+2. **Priorizar o que importa** — saber de relance o que é urgente (alta), o que pode esperar (baixa) e o que está no meio.
+3. **Acompanhar progresso** — ver quanto falta em cada lista sem abrir cada tarefa.
 
-Apps existentes são complexos demais, exigem conta, ou não combinam os dois fluxos em uma experiência coesa e offline.
+Apps existentes costumam exigir conta, sincronização obrigatória ou interfaces carregadas. CheckMe resolve isso com listas locais, prioridade por tarefa e UX enxuta no celular.
 
 ---
 
@@ -30,380 +33,329 @@ Apps existentes são complexos demais, exigem conta, ou não combinam os dois fl
 
 | Objetivo | Métrica de Sucesso |
 |---|---|
-| Criação de checklist rápida | < 30 segundos do zero até a primeira lista salva |
-| Rastreamento financeiro | Soma preço × quantidade exibida em tempo real |
-| Organização por status | Separação clara entre abertas e concluídas |
-| Planner do dia | Usuário preenche prioridades, tarefas e anotações do dia em < 60s |
+| Criação rápida de checklist | < 20 segundos do zero até a primeira lista salva |
+| Criação rápida de tarefa | < 10 segundos para adicionar tarefa com prioridade |
+| Clareza de prioridade | Usuário identifica prioridade de qualquer tarefa em < 1s (badge de cor) |
+| Progresso visível na home | Cada card de checklist exibe % de conclusão atualizado em tempo real |
 | Persistência local confiável | Zero perda de dados entre sessões |
-| Experiência polida | Tema light/dark, feedback visual e háptico consistentes |
+| Experiência polida | Dark-first, feedback visual/háptico, sem poluição visual |
 
 ---
 
 ## 4. Público-Alvo
 
-- **Perfil primário A**: Pessoas que fazem compras de mercado e querem controle de valor total — sem internet no mercado.
-- **Perfil primário B**: Pessoas que usam planner de papel para organizar o dia e querem a experiência no celular.
-- **Perfil secundário**: Usuários que gerenciam tarefas ou rotinas e precisam de checklists simples.
+- **Perfil primário**: Pessoas que organizam rotina, estudos, trabalho e compras em listas separadas e querem priorizar sem complexidade.
+- **Perfil secundário**: Usuários que migraram de planner de papel ou de apps pesados e buscam algo leve e offline.
 - **Plataformas**: Android (principal), iOS (suportado), Web (fallback).
 - **Conectividade**: Uso predominantemente offline.
 
 ---
 
-## 5. Escopo — v1.0 (Entregue)
+## 5. Modelo de Produto
 
-### 5.1 Funcionalidades
+### 5.1 Entidades
 
-#### Checklists
-- Criar com título, dois modos (lista estruturada / texto livre), paleta de 8 cores e agendamento opcional
-- Conversão bidirecional entre modos com preservação de dados
-- Editar título, cor, modo e agendamento a qualquer momento
-- Excluir com confirmação
+**Checklist** — container de tarefas com identidade visual opcional.
 
-#### Itens
-- Adicionar com nome, preço (opcional) e quantidade (default 1)
-- Editar via modal, marcar como feito, excluir, reordenar (posição persistida)
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `id` | number (SQLite) | sim | Identificador |
+| `title` | string | sim | Nome da lista (ex.: Estudos, Trabalho) |
+| `color` | string | não | Cor do card (paleta fixa do app) |
+| `icon` | string | não | Ícone opcional (emoji ou nome Ionicons) |
+| `createdAt` | timestamp | sim | Data de criação |
 
-#### Estatísticas
-- Progresso `concluídos / total`, total geral e total concluído (preço × quantidade)
+**Task (tarefa)** — item dentro de uma checklist. No domínio v2.0; no SQLite permanece a tabela `checklist_items` (coluna `name` hoje → mapear para `title` no TypeScript).
 
-#### Navegação
-- Aba Abertas, aba Concluídas, aba Nova, busca por título, pull-to-refresh, FAB
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `id` | number | sim | Identificador |
+| `checklistId` | number | sim | FK para checklist |
+| `title` | string | sim | Nome da tarefa (coluna `name` no SQLite até rename opcional) |
+| `description` | string | não | Detalhes opcionais |
+| `priority` | `HIGH` \| `MEDIUM` \| `LOW` | sim | Prioridade individual (default: `MEDIUM`) |
+| `completed` | boolean | sim | Concluída ou pendente (coluna `done`) |
+| `createdAt` | timestamp | sim | Data de criação |
+| `position` | number | sim | Ordem na lista (drag & drop) |
 
-#### Agendamento
-- Badge dinâmico: "Hoje" / "Em X dias" / "X dias em atraso"
+### 5.2 Prioridade visual
 
-#### Configurações
-- Tema light/dark/system com persistência, reset de banco
+| Prioridade | Cor semântica | Uso na UI |
+|---|---|---|
+| `HIGH` | Vermelho | Badge ao lado da linha da tarefa |
+| `MEDIUM` | Amarelo | Badge ao lado da linha da tarefa |
+| `LOW` | Azul / cinza | Badge ao lado da linha da tarefa |
 
-### 5.2 Arquitetura
+Cores via tokens em `constants/theme.ts` (`Colors.dark.priorityHigh`, etc.) — nunca hex solto em componentes.
 
-| Camada | Tecnologia |
-|---|---|
-| Framework | React Native 0.81 + Expo 54 |
-| Linguagem | TypeScript 5.9 |
-| Navegação | Expo Router 6 (file-based) |
-| Banco de dados | Expo SQLite 16 (local, migrations automáticas) |
-| Persistência auxiliar | AsyncStorage (tema) |
-| Animações | React Native Reanimated 4 |
-| Gestos | React Native Gesture Handler 2 |
-| Ícones | Expo Vector Icons (Ionicons) |
-| Build | EAS Build (APK / AAB) |
+### 5.3 Tela principal (Home)
 
-### 5.3 Modelo de Dados — v1.0
+Lista de checklists. Cada card exibe:
+
+- Nome da checklist
+- Contagem de tarefas (ex.: `12 tarefas`)
+- Progresso em % (tarefas concluídas / total)
+- Cor e ícone opcionais
+
+**Exemplo de exibição:**
 
 ```
+📘 Estudos — 70%
+💼 Trabalho — 45%
+🏋️ Academia — 20%
+🛒 Compras — 0%
+```
+
+Ações: tocar no card abre a checklist; FAB cria nova checklist.
+
+### 5.4 Tela de checklist (detalhe)
+
+- Lista de tarefas com `TaskItem` + `PriorityBadge`
+- Ordenação por prioridade (alta → média → baixa) e filtro por prioridade
+- Marcar concluída, editar, excluir, alterar prioridade
+- Barra de progresso da lista (`ProgressBar`)
+- FAB ou campo inline para nova tarefa
+
+---
+
+## 6. Requisitos Funcionais
+
+### 6.1 Checklists
+
+| ID | Requisito |
+|---|---|
+| C1 | Criar checklist com título; cor e ícone opcionais |
+| C2 | Editar título, cor e ícone |
+| C3 | Excluir checklist com confirmação (cascade nas tarefas) |
+| C4 | Listar todas as checklists na tela principal |
+| C5 | Exibir em cada card: nome, contagem de tarefas, % de progresso |
+
+### 6.2 Tarefas
+
+| ID | Requisito |
+|---|---|
+| T1 | Criar tarefa com título; descrição e prioridade opcionais (default `MEDIUM`) |
+| T2 | Editar título, descrição e prioridade |
+| T3 | Marcar tarefa como concluída / reabrir |
+| T4 | Excluir tarefa |
+| T5 | Alterar prioridade (HIGH / MEDIUM / LOW) |
+| T6 | Ordenar lista por prioridade (HIGH primeiro) |
+| T7 | Filtrar tarefas por prioridade |
+| T8 | Persistir ordem manual (position) via drag & drop |
+
+### 6.3 Navegação e configurações
+
+| ID | Requisito |
+|---|---|
+| N1 | Home = lista de checklists |
+| N2 | Rota `/checklist/[id]` para detalhe |
+| N3 | Tela de configurações: tema (dark padrão, light opcional), reset de banco |
+| N4 | Busca por nome de checklist na home (debounce) |
+
+### 6.4 UX mobile
+
+| ID | Requisito | Estado |
+|---|---|---|
+| U1 | Swipe para excluir tarefa | **Base v1.1** em `ChecklistItemRow` — adaptar para `TaskItem` v2.0 |
+| U2 | Drag & drop para reordenar tarefas | **Base v1.1** — adaptar após modelo Task |
+| U3 | Animações suaves de conclusão (strikethrough, progresso) | **Planejado** v2.0 |
+| U4 | Feedback háptico ao concluir tarefa | **Base v1.1** — manter em `TaskItem` |
+| U5 | Skeleton na home durante loading | **Base v1.1** — manter na home v2.0 |
+
+---
+
+## 7. Modelo de Dados (SQLite)
+
+### 7.1 Estado alvo (v2.0)
+
+```sql
 checklists
   id            INTEGER PK AUTOINCREMENT
   title         TEXT NOT NULL
+  color         TEXT NULL          -- hex da paleta
+  icon          TEXT NULL          -- emoji ou identificador de ícone
   created_at    INTEGER NOT NULL
-  mode          TEXT ('list' | 'text')
-  color         TEXT (hex)
-  scheduled_for INTEGER NULL
 
-checklist_items
+checklist_items   -- evolução: "tasks" no domínio
   id            INTEGER PK AUTOINCREMENT
   checklist_id  INTEGER FK → checklists(id) ON DELETE CASCADE
-  name          TEXT NOT NULL
-  price         REAL NULL
-  quantity      INTEGER DEFAULT 1
-  position      INTEGER DEFAULT 0
-  color         TEXT (hex)
-  done          INTEGER (0 | 1)
+  title         TEXT NOT NULL      -- era "name"; migration renomeia ou mapeia
+  description   TEXT NULL
+  priority      TEXT NOT NULL DEFAULT 'MEDIUM'  -- 'HIGH' | 'MEDIUM' | 'LOW'
+  done          INTEGER NOT NULL DEFAULT 0
+  position      INTEGER NOT NULL DEFAULT 0
+  created_at    INTEGER NOT NULL
 ```
+
+> **Nota de migração:** campos legados (`mode`, `scheduled_for`, `price`, `quantity` em itens) podem ser removidos ou mantidos como deprecated até migration de limpeza — ver TASKS.md.
+
+### 7.2 Legado — fora do escopo v2.0
+
+Tabelas do Planner Diário (`daily_planners`, `planner_items` com seções `priorities` / `tomorrow` / `dont_forget`) devem ser **removidas** após migração de dados relevantes (se houver) ou drop direto. Não documentar como feature ativa.
 
 ---
 
-## 6. Escopo — v1.1 (Em desenvolvimento)
+## 8. Arquitetura Técnica
 
-### 6.1 Melhorias nas Checklists Existentes
-
-#### M1 — Drag & drop para reordenar itens
-- `react-native-draggable-flatlist` já instalado; ativar na tela `/checklist/[id]`
-- Substituir botões ↑/↓ por handle de arrastar
-- Persistir ordem no banco via `reorderItems()`
-
-#### M2 — Feedback háptico ao marcar item
-- Vibração leve (`expo-haptics` `ImpactFeedbackStyle.Light`) ao fazer toggle done/undone
-- Vibração de sucesso (`NotificationFeedbackType.Success`) ao completar 100% da checklist
-
-#### M3 — Skeleton loading nas listas
-- Substituir spinner por skeleton cards (3 placeholders animados) nas abas Abertas e Concluídas
-- Preserva layout durante carregamento — sem "pulo" de conteúdo
-
-#### M4 — Swipe to delete em itens
-- Swipe para esquerda no `ChecklistItemRow` revela botão "Excluir" (vermelho)
-- Substitui o ícone de lixeira sempre visível — interface mais limpa
-
-#### M5 — Memoização de componentes de lista
-- `React.memo` em `ChecklistCard` e `ChecklistItemRow`
-- `useCallback` nos handlers passados como props
-- Reduz re-renders desnecessários em listas longas
-
-#### M6 — Campo de busca persistente na aba Abertas
-- Busca já existe; tornar o campo sticky (não some no scroll)
-- Debounce de 300ms na query
-
-### 6.2 Nova Feature — Planner Diário
-
-Inspirado em planners físicos (estilo "Hoje"), o Planner Diário oferece uma visão estruturada do dia corrente com seções fixas.
-
-#### Conceito visual (referência da imagem)
-
-```
-┌─────────────────────────────────┐
-│  HOJE  •  18 de maio de 2026    │
-├─────────────────────────────────┤
-│ PRIORIDADES (máx. 3)            │
-│  ☑ Ler                         │
-│  ☑ Estudar                     │
-│  ☐ Treinar                     │
-├─────────────────────────────────┤
-│ LISTA DO DIA                    │
-│  ☑ Fazer café da manhã         │
-│  ☐ Alimentar os gatos          │
-│  ☑ Ir para o crossfit          │
-│  ☐ Meditar                     │
-│  + Adicionar                    │
-├─────────────────────────────────┤
-│ PARA AMANHÃ (máx. 5)           │
-│  ☐ Aula de dança               │
-│  ☐ Corrida no parque           │
-├─────────────────────────────────┤
-│ NÃO ESQUECER (máx. 5)          │
-│  ☐ Levar o Toby para passear   │
-│  ☐ Levar o carro para lavar    │
-├─────────────────────────────────┤
-│ ANOTAÇÕES                       │
-│ [área de texto livre]           │
-└─────────────────────────────────┘
-```
-
-#### Comportamento
-
-- A aba **"Hoje"** sempre abre o planner do dia atual
-- Se não existe planner para hoje, cria automaticamente ao abrir
-- Dias anteriores ficam acessíveis via histórico (`/planner/[date]`)
-- Itens das seções Prioridades, Para Amanhã e Não Esquecer têm limite por seção (sem preço/quantidade — foco é na tarefa)
-- Lista do Dia é ilimitada e funciona como uma checklist comum do dia
-- Anotações é um campo de texto livre, salvo automaticamente (debounce 800ms)
-
-#### Modelo de Dados — v1.1
-
-```
-daily_planners
-  id         INTEGER PK AUTOINCREMENT
-  date       INTEGER NOT NULL UNIQUE   -- startOfDay(timestamp)
-  note       TEXT NULL                 -- anotações livres
-  created_at INTEGER NOT NULL
-
-planner_items
-  id         INTEGER PK AUTOINCREMENT
-  planner_id INTEGER FK → daily_planners(id) ON DELETE CASCADE
-  section    TEXT NOT NULL             -- 'main' | 'priorities' | 'tomorrow' | 'dont_forget'
-  name       TEXT NOT NULL
-  done       INTEGER DEFAULT 0
-  position   INTEGER DEFAULT 0
-```
-
-#### Limites por seção
-
-| Seção | Label | Máx. itens | Tem checkbox |
-|---|---|---|---|
-| `priorities` | Prioridades | 3 | sim |
-| `main` | Lista do Dia | ilimitado | sim |
-| `tomorrow` | Para Amanhã | 5 | sim |
-| `dont_forget` | Não Esquecer | 5 | sim |
-
-#### Novos arquivos
-
-```
-types/planner.ts
-repositories/planner-repository.ts
-hooks/use-daily-planner.ts
-components/planner/planner-section.tsx
-components/planner/planner-item-row.tsx
-components/planner/planner-note.tsx
-app/(tabs)/hoje.tsx
-app/planner/[date].tsx
-```
-
-#### Navegação — nova aba
-
-Substituir a aba "Nova" por "Hoje" no layout principal. A criação de checklist passa a ser iniciada via FAB nas abas Abertas/Concluídas:
-
-```
-(tabs)/
-  abertas.tsx    ← Abertas (ícone: list)
-  hoje.tsx       ← Hoje — Planner Diário (ícone: calendar-today)
-  nova.tsx       ← Nova Checklist (ícone: add-circle)
-  concluidas.tsx ← Concluídas (ícone: checkmark-circle)
-```
-
----
-
-## 7. Fora do Escopo (v1.0 e v1.1)
-
-| Funcionalidade | Justificativa |
+| Camada | Tecnologia |
 |---|---|
-| Notificações push na data agendada | Complexidade de permissões e background tasks |
-| Sincronização cloud | Requer autenticação — aumenta fricção inicial |
-| Compartilhamento de checklists | Dependência de serviço externo |
-| Subtarefas / hierarquia | Sem validação de demanda no MVP |
-| Categorias / tags | Cores + busca já resolvem organização no MVP |
-| Backup / exportação | Nice-to-have para v1.2+ |
-| Widget de tela inicial | Alta complexidade nativa |
-| Testes automatizados (Detox) | Após estabilização das telas |
-| Recorrência de planner | Planner "modelo" para repetir dias — v1.2+ |
+| Framework | React Native + Expo |
+| Linguagem | TypeScript |
+| Navegação | Expo Router (file-based) |
+| Banco de dados | Expo SQLite (local, migrations automáticas) |
+| Persistência auxiliar | AsyncStorage (tema) |
+| Animações | React Native Reanimated |
+| Gestos | React Native Gesture Handler |
+| Ícones | Expo Vector Icons (Ionicons) |
+| Build | EAS Build |
+
+**Padrão de código:** lógica em `repositories/` e `hooks/`; telas em `app/` só compõem; componentes visuais em `components/`.
 
 ---
 
-## 8. Fluxos Principais
+## 9. Componentes de UI (first-class)
 
-### 8.1 Criar e usar Checklist
-
-```
-Aba "Abertas" → FAB → Aba "Nova"
-  → Preenche título, modo, cor, itens, agendamento opcional
-  → Salva → Alert com "Abrir" → /checklist/[id]
-  → Marca itens como feitos → 100% → some de Abertas → aparece em Concluídas
-```
-
-### 8.2 Planner Diário — Happy Path
-
-```
-Aba "Hoje"
-  → Carrega (ou cria) planner do dia atual
-  → Vê seções: Prioridades, Lista do Dia, Para Amanhã, Não Esquecer, Anotações
-  → Adiciona item em qualquer seção → salva imediatamente no banco
-  → Marca item como feito → toggle com háptico
-  → Escreve na área de Anotações → salvo automaticamente após 800ms de pausa
-  → Barra de progresso no header mostra % do dia concluído (main + priorities)
-```
-
-### 8.3 Histórico do Planner
-
-```
-Aba "Hoje" → botão "Ver histórico" (header)
-  → Lista de datas com planner salvo
-  → Toca data → /planner/[date] (edição igual à aba Hoje)
-```
-
-### 8.4 Reordenar Itens (após M1)
-
-```
-/checklist/[id]
-  → Segura handle do item
-  → Arrasta para nova posição
-  → Solta → ordem salva no banco via reorderItems()
-```
-
----
-
-## 9. Requisitos Não-Funcionais
-
-| Requisito | Especificação |
+| Componente | Responsabilidade |
 |---|---|
-| Performance | FlatList com `React.memo`, `useCallback`, `getItemLayout` onde altura é fixa |
-| Offline | 100% funcional sem conexão |
-| Integridade | `PRAGMA foreign_keys = ON`; CASCADE em deletes |
-| Compatibilidade | Android 7+ (API 24), iOS 16+, Web (fallback) |
-| Tema | Light/Dark/System com persistência |
-| Acessibilidade | Touch targets ≥ 44px; `accessibilityRole`, `accessibilityLabel` em interativos |
-| Hápticos | Feedback em ações de marcar feito e conclusão de lista |
-| Segurança | Sem dados sensíveis; sem rede; sem autenticação |
+| `ChecklistCard` | Card na home: nome, ícone, cor, contagem, `ProgressBar` |
+| `TaskItem` | Linha de tarefa: checkbox, título, descrição truncada, `PriorityBadge` |
+| `PriorityBadge` | Pill colorida por prioridade (HIGH / MEDIUM / LOW) |
+| `ProgressBar` | Barra horizontal de % de conclusão |
+| `FloatingAddButton` | FAB global — mapeia para `components/ui/fab.tsx` |
+
+Primitivos existentes: `Button`, `TextField`, `SearchBar`, `EmptyState`, `ThemedText`, `ThemedView`.
 
 ---
 
 ## 10. Design e UX
 
-### Princípios
-- **Velocidade de criação**: chegar à primeira entrada (checklist ou planner) em < 30 segundos
-- **Hierarquia visual intencional**: 1 CTA primário por seção; espaçamento e tipografia como separadores
-- **Feedback consistente**: háptico + visual em ações; loading preserva layout (skeleton)
-- **Sem cara de IA**: microcopy específico, densidade uniforme, sem gradientes decorativos
+### 10.1 Princípios
 
-### Paleta de Cores das Checklists
-| Nome | Hex |
+- **Mobile-first** — layouts e touch targets pensados para polegar.
+- **Dark-first** — tema escuro como padrão na primeira abertura; light disponível nas configurações.
+- **Minimalismo** — poucos divisores; hierarquia por espaçamento e tipografia, não por bordas excessivas.
+- **Sem clutter** — um CTA primário por contexto; cards com borda suave ou elevação mínima.
+- **Velocidade** — criar checklist ou tarefa em poucos toques.
+
+### 10.2 Tokens e tema
+
+Usar `Colors` de `constants/theme.ts` e `useThemeMode()`. Paleta dark-first:
+
+- Fundo: `background` escuro
+- Superfície de card: `surface` com contraste sutil
+- Texto: `text` / `textMuted`
+- Prioridades: tokens semânticos (`priorityHigh`, `priorityMedium`, `priorityLow`) — **a adicionar** em v2.0
+- **Hoje:** tema padrão ainda é `system` no `ThemeContext`; v2.0 deve preferir `dark` na primeira instalação
+
+### 10.3 Paleta de cores das checklists
+
+8 cores fixas em `constants/checklist-colors.ts` (inalterado no conceito).
+
+---
+
+## 11. Fluxos Principais
+
+### 11.1 Primeiro uso
+
+```
+Abre app (dark) → Home vazia → EmptyState + FAB
+  → Cria checklist "Estudos" com cor azul
+  → Abre checklist → Adiciona tarefas com prioridades
+  → Volta à Home → Card mostra "Estudos — 0%" → marca tarefas → "70%"
+```
+
+### 11.2 Priorizar e filtrar
+
+```
+/checklist/[id]
+  → Lista ordenada por HIGH → MEDIUM → LOW
+  → Filtra "Só alta" → vê apenas urgentes
+  → Altera prioridade de uma tarefa → badge atualiza
+```
+
+### 11.3 Concluir tarefa
+
+```
+TaskItem → toggle → háptico leve → strikethrough
+  → ProgressBar e % na Home atualizam ao voltar (useFocusEffect)
+```
+
+---
+
+## 12. Fora do Escopo (v2.0)
+
+| Funcionalidade | Justificativa |
 |---|---|
-| Azul | `#2563EB` |
-| Ciano | `#0891B2` |
-| Roxo | `#7C3AED` |
-| Rosa | `#DB2777` |
-| Laranja | `#F97316` |
-| Amarelo | `#FACC15` |
-| Verde | `#22C55E` |
-| Grafite | `#64748B` |
-
-### Cores do Planner (tema fixo, não personalizável na v1.1)
-- Seção Prioridades: accent primário do tema (`primary`)
-- Seção Lista do Dia: neutro (surface)
-- Seção Para Amanhã: success do tema (`success`)
-- Seção Não Esquecer: warning (a definir nos tokens)
-- Anotações: surface com borda sutil
+| Planner Diário com seções (Prioridades, Amanhã, Não Esquecer) | Substituído por prioridade por tarefa em checklists |
+| Modo texto livre / preço × quantidade (v1.0) | Simplificação do modelo de tarefa |
+| Agendamento de checklist por data | Fora do MVP v2.0 |
+| Sincronização cloud | Requer conta — aumenta fricção |
+| Compartilhamento de listas | Dependência de serviço externo |
+| Subtarefas / hierarquia | Sem validação de demanda |
+| Notificações push | v2.x+ |
+| Widget de tela inicial | Alta complexidade nativa |
+| Testes E2E automatizados | Após estabilização |
 
 ---
 
-## 11. Riscos e Mitigações
+## 13. Requisitos Não-Funcionais
 
-| Risco | Probabilidade | Mitigação |
-|---|---|---|
-| Drag & drop instável no Android | Média | Testar em device físico antes de ativar; fallback para botões ↑/↓ |
-| Planner duplicado no mesmo dia | Baixa | Constraint `UNIQUE` em `date`; upsert na abertura da aba |
-| Performance com lista do dia longa | Baixa | FlatList + React.memo por seção |
-| Swipe conflict com scroll vertical | Média | Usar threshold de swipe adequado no Gesture Handler |
-| Divergência modo texto ↔ lista | Média | `syncItemsFromLines()` já implementado com reconciliação |
+| Requisito | Especificação |
+|---|---|
+| Performance | `FlatList` + `React.memo` em listas longas |
+| Offline | 100% funcional sem conexão |
+| Integridade | `PRAGMA foreign_keys = ON`; `ON DELETE CASCADE` |
+| Compatibilidade | Android 7+ (API 24), iOS 16+, Web (fallback) |
+| Tema | Dark padrão; light/system opcional |
+| Acessibilidade | Touch targets ≥ 44px; labels em checkboxes e FAB |
+| Segurança | Sem rede; sem autenticação; dados só no dispositivo |
 
 ---
 
-## 12. Métricas de Qualidade
+## 14. Métricas de Qualidade
 
-- [ ] Crash-free: zero erros não tratados que travem o app
+- [ ] Crash-free nos fluxos: criar checklist → adicionar tarefas → priorizar → concluir → excluir
 - [ ] Abertura do app < 2s em device médio
-- [ ] Criação de checklist com 5 itens em < 60s
-- [ ] Planner do dia criado e preenchido em < 90s
-- [ ] Banco íntegro após ciclo: criar → editar → concluir → reabrir
+- [ ] Home atualiza % sem precisar reiniciar app
+- [ ] Migration v2.0 não perde checklists existentes (itens ganham `priority = MEDIUM`)
 
 ---
 
-## 13. Roadmap
+## 15. Roadmap
 
-### v1.0 — Concluído
-- Checklists com dois modos, cores, agendamento, estatísticas financeiras
-- Tema light/dark, SQLite local com migrations
+### v1.0 — Legado (entregue)
+Checklists com modo lista/texto, preço, agendamento, abas Abertas/Concluídas.
 
-### v1.1 — Implementado (validação Android pendente)
-- **M1** Drag & drop para reordenar itens de checklist e planner
-- **M2** Feedback háptico ao marcar item feito
-- **M3** Skeleton loading nas listas
-- **M4** Swipe to delete em itens
-- **M5** Memoização de componentes de lista
-- **M6** Campo de busca sticky com debounce
-- **F1** Planner Diário — aba "Hoje" com seções, anotações, progresso e histórico (`/planner/[date]`)
+### v1.1 — Legado (entregue, a descontinuar)
+Melhorias de UX (drag, háptico, skeleton, swipe) + Planner Diário com seções — **remover na v2.0**.
 
-### v1.2 — Planejado
-- Notificações locais na data agendada (`expo-notifications`)
-- Exportação/backup do banco (JSON ou SQLite export)
+### v2.0 — Visão atual (em implementação)
+- Modelo checklist + tarefas com prioridade (`Task`, `TaskPriority`)
+- Home unificada com cards (`ChecklistCard` + `ProgressBar`) — substituir abas Abertas/Concluídas por lista única com %
+- `TaskItem`, `PriorityBadge`, filtro e ordenação por prioridade
+- Tema dark-first; tokens de prioridade em `Colors`
+- Remoção do Planner Diário (seções Prioridades / Amanhã / Não Esquecer) e simplificação do schema
+- Reaproveitar UX v1.1: háptico, skeleton, swipe, drag — adaptados ao novo modelo
 
-### v2.0 — Longo prazo (requer validação)
-- Sincronização cloud opcional
-- Widget de tela inicial (Android)
-- Planner "modelo" para repetir estrutura de dias
+### v2.1+ — Futuro
+- Notificações locais
+- Backup/export JSON
+- Animações de conclusão refinadas
+- Widget Android
+
+### v3.0 — Longo prazo
+- Sync cloud opcional
 - Compartilhamento de checklist
 
 ---
 
-## 14. Glossário
+## 16. Glossário
 
 | Termo | Definição |
 |---|---|
-| Checklist | Lista de itens com título, cor, modo e agendamento opcional |
-| Item | Entrada de checklist com nome, preço, quantidade e estado done/pendente |
-| Modo Lista | Campos estruturados por item (nome, preço, quantidade) |
-| Modo Texto | Área livre — cada linha vira um item |
-| Aberta | Checklist com pelo menos um item pendente |
-| Concluída | Checklist com todos os itens marcados como feitos |
-| Total Geral | Soma de `preço × quantidade` de todos os itens |
-| Total Concluído | Soma de `preço × quantidade` apenas dos itens feitos |
-| Planner Diário | Visão do dia com seções fixas: Prioridades, Lista do Dia, Para Amanhã, Não Esquecer e Anotações |
-| Seção | Grupo temático dentro do Planner Diário |
-| Planner de um dia | Registro vinculado a uma data (startOfDay), com itens e anotações |
+| Checklist | Lista nomeada que agrupa tarefas (ex.: Estudos, Trabalho) |
+| Task / Tarefa | Item dentro de uma checklist com título, prioridade e estado concluído |
+| Prioridade | Nível HIGH, MEDIUM ou LOW atribuído a cada tarefa individualmente |
+| Progresso | Percentual de tarefas concluídas em uma checklist |
+| PriorityBadge | Componente visual que indica a prioridade de uma tarefa |
+| Home | Tela principal com todos os cards de checklist |

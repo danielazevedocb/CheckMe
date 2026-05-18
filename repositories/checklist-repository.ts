@@ -8,6 +8,7 @@ import {
   type ChecklistRow,
   type ChecklistStatus,
   type ChecklistSummary,
+  type ChecklistType,
   type ChecklistWithItems,
 } from '@/types/checklist';
 
@@ -18,6 +19,7 @@ const SUMMARY_LIST_QUERY = `
     c.created_at AS created_at,
     c.color AS color,
     c.icon AS icon,
+    c.type AS type,
     COUNT(i.id) AS total_items,
     SUM(CASE WHEN i.done = 1 THEN 1 ELSE 0 END) AS completed_items
   FROM checklists c
@@ -34,6 +36,7 @@ const SUMMARY_BY_ID_QUERY = `
     c.created_at AS created_at,
     c.color AS color,
     c.icon AS icon,
+    c.type AS type,
     COUNT(i.id) AS total_items,
     SUM(CASE WHEN i.done = 1 THEN 1 ELSE 0 END) AS completed_items
   FROM checklists c
@@ -53,39 +56,17 @@ export interface CreateChecklistInput {
   title: string;
   color: string;
   icon?: string | null;
+  type?: ChecklistType;
 }
 
 export async function createChecklist(
   db: Database,
-  title: string,
-  modeOrColor: ChecklistMode | string,
-  colorOrScheduled: string | number | null,
-  scheduledForOrIcon?: number | string | null,
-  icon?: string | null,
+  input: CreateChecklistInput,
 ): Promise<number> {
-  const createdAt = Date.now();
-
-  let color: string;
-  let resolvedIcon: string | null = null;
-
-  if (modeOrColor === 'list' || modeOrColor === 'text') {
-    color = String(colorOrScheduled);
-    const maybeIcon = typeof scheduledForOrIcon === 'string' ? scheduledForOrIcon : icon;
-    resolvedIcon = normalizeIcon(maybeIcon);
-  } else {
-    color = modeOrColor;
-    const maybeIcon =
-      typeof colorOrScheduled === 'string'
-        ? colorOrScheduled
-        : typeof scheduledForOrIcon === 'string'
-          ? scheduledForOrIcon
-          : icon;
-    resolvedIcon = normalizeIcon(maybeIcon);
-  }
-
+  const type = input.type ?? 'task';
   const result = await db.runAsync(
-    'INSERT INTO checklists (title, created_at, color, icon) VALUES (?, ?, ?, ?);',
-    [title.trim(), createdAt, color, resolvedIcon],
+    'INSERT INTO checklists (title, created_at, color, icon, type) VALUES (?, ?, ?, ?, ?);',
+    [input.title.trim(), Date.now(), input.color, normalizeIcon(input.icon), type],
   );
 
   return Number(result.lastInsertRowId ?? 0);
@@ -97,6 +78,14 @@ export async function updateChecklistTitle(
   title: string,
 ): Promise<void> {
   await db.runAsync('UPDATE checklists SET title = ? WHERE id = ?;', [title.trim(), checklistId]);
+}
+
+export async function updateChecklistColor(
+  db: Database,
+  checklistId: number,
+  color: string,
+): Promise<void> {
+  await db.runAsync('UPDATE checklists SET color = ? WHERE id = ?;', [color, checklistId]);
 }
 
 export async function updateChecklistIcon(
@@ -111,7 +100,7 @@ export async function deleteChecklist(db: Database, checklistId: number): Promis
   await db.runAsync('DELETE FROM checklists WHERE id = ?;', [checklistId]);
 }
 
-/** @deprecated Mode column removed in schema v5 — no-op for UI compatibility. */
+/** @deprecated mode column removed in schema v5 — no-op kept for call-site compatibility. */
 export async function updateChecklistMode(
   _db: Database,
   _checklistId: number,
@@ -120,15 +109,7 @@ export async function updateChecklistMode(
   return;
 }
 
-export async function updateChecklistColor(
-  db: Database,
-  checklistId: number,
-  color: string,
-): Promise<void> {
-  await db.runAsync('UPDATE checklists SET color = ? WHERE id = ?;', [color, checklistId]);
-}
-
-/** @deprecated scheduled_for column removed in schema v5 — no-op for UI compatibility. */
+/** @deprecated scheduled_for column removed in schema v5 — no-op kept for call-site compatibility. */
 export async function updateChecklistSchedule(
   _db: Database,
   _checklistId: number,
@@ -144,16 +125,13 @@ export async function listChecklists(
 ): Promise<ChecklistSummary[]> {
   const search = `%${(searchTerm ?? '').trim()}%`;
   const rows = await db.getAllAsync<SummaryRow>(SUMMARY_LIST_QUERY, [search]);
-
-  const summaries = rows.map((row) => mapSummary(row));
+  const summaries = rows.map(mapSummary);
 
   if (status === 'all') {
     return summaries;
   }
 
-  return summaries.filter((summary) =>
-    status === 'completed' ? isCompleted(summary) : !isCompleted(summary),
-  );
+  return summaries.filter((s) => (status === 'completed' ? isCompleted(s) : !isCompleted(s)));
 }
 
 export async function getChecklistWithItems(
@@ -170,23 +148,16 @@ export async function getChecklistWithItems(
   const summary = mapSummary(summaryRow);
   const items = await listTasksByChecklist(db, checklistId, options);
 
-  return {
-    ...summary,
-    items,
-  };
+  return { ...summary, items };
 }
 
 export async function getChecklist(db: Database, checklistId: number): Promise<ChecklistRecord | null> {
   const row = await db.getFirstAsync<ChecklistRow>(
-    'SELECT id, title, created_at, color, icon FROM checklists WHERE id = ?;',
+    'SELECT id, title, created_at, color, icon, type FROM checklists WHERE id = ?;',
     [checklistId],
   );
 
-  if (!row) {
-    return null;
-  }
-
-  return mapChecklistRow(row);
+  return row ? mapChecklistRow(row) : null;
 }
 
 function mapSummary(row: SummaryRow): ChecklistSummary {
@@ -197,7 +168,7 @@ function mapSummary(row: SummaryRow): ChecklistSummary {
     ...mapChecklistRow(row),
     totalItems,
     completedItems,
-    progressPercent: computeChecklistProgressPercent(totalItems, completedItems),
+    progressPercent: computeChecklistProgressPercent(completedItems, totalItems),
     totalAmount: 0,
     completedAmount: 0,
   };
@@ -208,11 +179,7 @@ function isCompleted(summary: ChecklistSummary): boolean {
 }
 
 function normalizeIcon(icon: string | null | undefined): string | null {
-  if (icon == null) {
-    return null;
-  }
-
+  if (icon == null) return null;
   const trimmed = icon.trim();
   return trimmed.length > 0 ? trimmed : null;
 }
-

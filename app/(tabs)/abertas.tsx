@@ -1,8 +1,9 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, type ListRenderItemInfo, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, type ListRenderItemInfo, RefreshControl, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { ChecklistCard } from '@/components/checklist/checklist-card';
+import { ChecklistCardSkeleton } from '@/components/checklist/checklist-card-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FloatingActionButton } from '@/components/ui/fab';
 import { SearchBar } from '@/components/ui/search-bar';
@@ -49,8 +50,10 @@ export default function AbertasScreen(): JSX.Element {
       <SearchBar value={search} onChangeText={setSearch} placeholder="Buscar listas" />
 
       {loading && data.length === 0 ? (
-        <View style={styles.centered}>
-          <ActivityIndicator />
+        <View style={styles.skeletonList}>
+          <ChecklistCardSkeleton />
+          <ChecklistCardSkeleton />
+          <ChecklistCardSkeleton />
         </View>
       ) : null}
 
@@ -105,10 +108,10 @@ const styles = StyleSheet.create({
   separator: {
     height: 8,
   },
-  centered: {
+  skeletonList: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingTop: 16,
+    gap: 8,
   },
   errorWrapper: {
     position: 'absolute',

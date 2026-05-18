@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerAndroid, type DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import * as Haptics from 'expo-haptics';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -206,14 +207,24 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   };
 
   const handleToggleItem = useCallback(async (itemId: number) => {
-    const item = itemsOrderRef.current.find((entry) => entry.id === itemId);
+    const items = itemsOrderRef.current;
+    const item = items.find((entry) => entry.id === itemId);
     if (!item) {
       return;
     }
 
+    const totalItems = items.length;
+    const completedItems = items.filter((entry) => entry.done).length;
+    const markingDone = !item.done;
+    const willCompleteAll =
+      markingDone && totalItems > 0 && completedItems + 1 === totalItems;
+
     try {
       await setItemDone(db, itemId, !item.done);
       await refresh();
+      if (willCompleteAll) {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
     } catch (err) {
       Alert.alert('Erro', 'Não foi possível atualizar o item.');
       console.error(err);

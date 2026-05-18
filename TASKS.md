@@ -33,10 +33,10 @@ Tarefas de implementação organizadas por prioridade e dependência. Cada task 
 **Prioridade**: Alta (melhora percepção de qualidade)  
 **Esforço**: Pequeno (~30min)
 
-- [ ] Importar `Haptics` de `expo-haptics` em `ChecklistItemRow`
-- [ ] Chamar `Haptics.impactAsync(ImpactFeedbackStyle.Light)` no toggle done/undone
-- [ ] Chamar `Haptics.notificationAsync(NotificationFeedbackType.Success)` quando `completedItems === totalItems` após toggle
-- [ ] Lógica de 100% deve vir do hook/callback do pai, não recalcular no componente
+- [x] Importar `Haptics` de `expo-haptics` em `ChecklistItemRow`
+- [x] Chamar `Haptics.impactAsync(ImpactFeedbackStyle.Light)` no toggle done/undone
+- [x] Chamar `Haptics.notificationAsync(NotificationFeedbackType.Success)` quando `completedItems === totalItems` após toggle
+- [x] Lógica de 100% deve vir do hook/callback do pai, não recalcular no componente
 
 **Arquivos**: `components/checklist/checklist-item-row.tsx`, `app/checklist/[id].tsx`
 
@@ -48,11 +48,11 @@ Tarefas de implementação organizadas por prioridade e dependência. Cada task 
 **Prioridade**: Média  
 **Esforço**: Médio (~2h)
 
-- [ ] Criar componente `components/ui/skeleton.tsx` com animação de pulso (Reanimated)
-- [ ] Criar `components/checklist/checklist-card-skeleton.tsx` que imita a estrutura do `ChecklistCard`
-- [ ] Substituir o indicador de loading em `abertas.tsx` por 3 `ChecklistCardSkeleton` em sequência
-- [ ] Fazer o mesmo em `concluidas.tsx`
-- [ ] Respeitar `prefers-reduced-motion` (sem animação se sistema pedir)
+- [x] Criar componente `components/ui/skeleton.tsx` com animação de pulso (Reanimated)
+- [x] Criar `components/checklist/checklist-card-skeleton.tsx` que imita a estrutura do `ChecklistCard`
+- [x] Substituir o indicador de loading em `abertas.tsx` por 3 `ChecklistCardSkeleton` em sequência
+- [x] Fazer o mesmo em `concluidas.tsx`
+- [x] Respeitar `prefers-reduced-motion` (sem animação se sistema pedir)
 
 **Arquivos**: `components/ui/skeleton.tsx` (novo), `components/checklist/checklist-card-skeleton.tsx` (novo), `app/(tabs)/abertas.tsx`, `app/(tabs)/concluidas.tsx`
 

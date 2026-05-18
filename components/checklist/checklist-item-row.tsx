@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { memo } from 'react';
+import * as Haptics from 'expo-haptics';
+import { memo, useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors } from '@/constants/theme';
@@ -56,6 +57,11 @@ function ChecklistItemRowComponent({
       ? `${formatCurrency(unitPrice)} x ${quantity} = ${formatCurrency(totalPrice)}`
       : formatCurrency(unitPrice);
 
+  const handleTogglePress = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    onToggle(item.id);
+  }, [item.id, onToggle]);
+
   return (
     <View
       style={[
@@ -67,7 +73,7 @@ function ChecklistItemRowComponent({
       accessibilityLabel={`Item ${item.name}`}
       accessibilityHint="Toque para alternar o status"
     >
-      <Pressable style={styles.mainRow} onPress={() => onToggle(item.id)}>
+      <Pressable style={styles.mainRow} onPress={handleTogglePress}>
         <Ionicons name={iconName} size={26} color={iconColor} />
         <View style={styles.textGroup}>
           <Text

@@ -25,7 +25,7 @@ Tarefas de implementação da visão **múltiplas checklists + tarefas com prior
 | Limpeza planner + colunas legadas | Sim — migration v5 |
 | `TaskItem`, `PriorityBadge`, `ProgressBar` | Sim — `components/checklist/*`; `ChecklistItemRow` reexporta `TaskItem` |
 | Home v2.0 (lista única + % + ícone) | Parcial — cards com `ProgressBar` + %; abas `abertas` / `concluidas` (V3.1) |
-| Planner (`hoje`, `planner/[date]`) | **Presente** — remover (Grupo L) |
+| Planner (`hoje`, `planner/[date]`) | Removido (Grupo L) |
 | UX v1.1 (háptico, skeleton, swipe, drag, busca) | **Implementado** em `TaskItem` / `abertas` |
 
 ---
@@ -112,7 +112,7 @@ Tarefas de implementação da visão **múltiplas checklists + tarefas com prior
 **Esforço**: Pequeno (~1h)
 
 - [x] Adicionar em `constants/theme.ts`: `priorityHigh`, `priorityMedium`, `priorityLow` (light + dark)
-- [ ] `ThemeContext`: primeira instalação → preferir `dark` (AsyncStorage vazio)
+- [x] `ThemeContext`: primeira instalação → preferir `dark` (AsyncStorage vazio)
 
 **Arquivos**: `constants/theme.ts`, `contexts/theme-context.tsx`
 
@@ -239,14 +239,14 @@ Tarefas de implementação da visão **múltiplas checklists + tarefas com prior
 > **Não expandir.** Planner com seções `priorities` / `tomorrow` / `dont_forget` foi descontinuado na v2.0.
 
 ### L1 — Remover rotas e aba
-- [ ] Remover `app/(tabs)/hoje.tsx` e entrada na tab bar
-- [ ] Remover `app/planner/[date].tsx`
-- [ ] Atualizar `app/(tabs)/_layout.tsx`
+- [x] Remover `app/(tabs)/hoje.tsx` e entrada na tab bar
+- [x] Remover `app/planner/[date].tsx`
+- [x] Atualizar `app/(tabs)/_layout.tsx`
 
 ### L2 — Remover código
-- [ ] Deletar `components/planner/`
-- [ ] Deletar `repositories/planner-repository.ts`, `hooks/use-daily-planner.ts`, `hooks/use-planner-summaries.ts`
-- [ ] Deletar `types/planner.ts`
+- [x] Deletar `components/planner/`
+- [x] Deletar `repositories/planner-repository.ts`, `hooks/use-daily-planner.ts`, `hooks/use-planner-summaries.ts`
+- [x] Deletar `types/planner.ts`
 
 ### L3 — Remover tabelas
 - [x] Migration: `DROP TABLE planner_items; DROP TABLE daily_planners;`

@@ -18,7 +18,6 @@ export default function RootLayout() {
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="config" options={{ title: 'Configurações' }} />
-            <Stack.Screen name="planner/[date]" options={{ title: 'Planner' }} />
           </Stack>
         </DatabaseProvider>
       </ThemeProvider>

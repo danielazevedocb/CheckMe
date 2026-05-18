@@ -40,6 +40,9 @@ export function ThemeProvider({ children }: PropsWithChildren): JSX.Element {
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
         if (stored === 'light' || stored === 'dark' || stored === 'system') {
           setModeState(stored);
+        } else {
+          setModeState('dark');
+          await AsyncStorage.setItem(STORAGE_KEY, 'dark');
         }
       } finally {
         setReady(true);

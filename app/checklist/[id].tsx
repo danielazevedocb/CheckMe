@@ -23,7 +23,8 @@ import DraggableFlatList, {
 } from 'react-native-draggable-flatlist';
 import type { SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
-import { ChecklistItemRow } from '@/components/checklist/checklist-item-row';
+import { ProgressBar } from '@/components/checklist/progress-bar';
+import { TaskItem } from '@/components/checklist/task-item';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -48,7 +49,6 @@ import {
     differenceInDays,
     formatCurrency,
     formatFullDate,
-    formatProgress,
     parseCurrencyInput,
     parseQuantityInput,
     startOfDay,
@@ -73,7 +73,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
 
-  const { checklist, loading, error, refresh } = useChecklist(checklistId);
+  const { data: checklist, loading, error, refresh } = useChecklist(checklistId);
 
   const [titleDraft, setTitleDraft] = useState('');
   const [isSavingTitle, setSavingTitle] = useState(false);
@@ -446,8 +446,9 @@ export default function ChecklistDetailsScreen(): JSX.Element {
 
       return (
         <ScaleDecorator activeScale={1.02}>
-          <ChecklistItemRow
+          <TaskItem
             item={item}
+            accentColor={color}
             onToggle={handleToggleItem}
             onEdit={openEditItem}
             onDelete={handleDeleteItem}
@@ -470,6 +471,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     [
       checklistMode,
       closeOtherSwipeables,
+      color,
       dragEnabled,
       handleDeleteItem,
       handleMoveDown,
@@ -489,8 +491,9 @@ export default function ChecklistDetailsScreen(): JSX.Element {
       const canMoveDown = index < itemCount - 1;
 
       return (
-        <ChecklistItemRow
+        <TaskItem
           item={item}
+          accentColor={color}
           onToggle={handleToggleItem}
           onEdit={openEditItem}
           onDelete={handleDeleteItem}
@@ -504,7 +507,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
         />
       );
     },
-    [checklistMode, handleDeleteItem, handleMoveDown, handleMoveUp, handleToggleItem, openEditItem],
+    [checklistMode, color, handleDeleteItem, handleMoveDown, handleMoveUp, handleToggleItem, openEditItem],
   );
 
   const keyExtractor = useCallback((item: ChecklistItem) => item.id.toString(), []);
@@ -676,8 +679,13 @@ export default function ChecklistDetailsScreen(): JSX.Element {
       <View
         style={[styles.statsCard, { backgroundColor: palette.surface, borderColor: palette.border }]}
         accessibilityRole="summary">
+        <ProgressBar
+          label="Progresso"
+          completed={totals.completedItems}
+          total={totals.totalItems}
+          showPercent
+        />
         <View style={styles.statsRow}>
-          <Stat label="Progresso" value={formatProgress(totals.completedItems, totals.totalItems)} />
           <Stat label="Total" value={formatCurrency(totals.totalAmount)} />
           <Stat label="✓ Somado" value={formatCurrency(totals.completedAmount)} accent={palette.success} />
         </View>

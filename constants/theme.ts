@@ -20,6 +20,9 @@ export const Colors = {
     overlay: 'rgba(15, 23, 42, 0.4)',
     tabIconDefault: '#9CA3AF',
     tabIconSelected: '#2563EB',
+    priorityHigh: '#DC2626',
+    priorityMedium: '#CA8A04',
+    priorityLow: '#64748B',
   },
   dark: {
     background: '#0F172A',
@@ -35,6 +38,9 @@ export const Colors = {
     overlay: 'rgba(2, 6, 23, 0.6)',
     tabIconDefault: '#64748B',
     tabIconSelected: '#60A5FA',
+    priorityHigh: '#F87171',
+    priorityMedium: '#FACC15',
+    priorityLow: '#94A3B8',
   },
 };
 

@@ -23,10 +23,10 @@ Tarefas de implementação da visão **múltiplas checklists + tarefas com prior
 | Colunas `priority`, `description`, `created_at` | Sim — migration v3 em `lib/database.ts` |
 | Coluna `icon` em checklists | Sim — migration v4 |
 | Limpeza planner + colunas legadas | Sim — migration v5 |
-| `TaskItem`, `PriorityBadge`, `ProgressBar` | Não — só `ChecklistItemRow`, `ChecklistCard` (modo compras) |
-| Home v2.0 (lista única + % + ícone) | Não — abas `abertas` / `concluidas` + valores monetários no card |
+| `TaskItem`, `PriorityBadge`, `ProgressBar` | Sim — `components/checklist/*`; `ChecklistItemRow` reexporta `TaskItem` |
+| Home v2.0 (lista única + % + ícone) | Parcial — cards com `ProgressBar` + %; abas `abertas` / `concluidas` (V3.1) |
 | Planner (`hoje`, `planner/[date]`) | **Presente** — remover (Grupo L) |
-| UX v1.1 (háptico, skeleton, swipe, drag, busca) | **Implementado** em `ChecklistItemRow` / `abertas` — adaptar ao v2.0 |
+| UX v1.1 (háptico, skeleton, swipe, drag, busca) | **Implementado** em `TaskItem` / `abertas` |
 
 ---
 
@@ -111,7 +111,7 @@ Tarefas de implementação da visão **múltiplas checklists + tarefas com prior
 **Prioridade**: Alta  
 **Esforço**: Pequeno (~1h)
 
-- [ ] Adicionar em `constants/theme.ts`: `priorityHigh`, `priorityMedium`, `priorityLow` (light + dark)
+- [x] Adicionar em `constants/theme.ts`: `priorityHigh`, `priorityMedium`, `priorityLow` (light + dark)
 - [ ] `ThemeContext`: primeira instalação → preferir `dark` (AsyncStorage vazio)
 
 **Arquivos**: `constants/theme.ts`, `contexts/theme-context.tsx`
@@ -122,8 +122,8 @@ Tarefas de implementação da visão **múltiplas checklists + tarefas com prior
 **Prioridade**: Alta  
 **Esforço**: Pequeno (~1h)
 
-- [ ] Criar `components/checklist/priority-badge.tsx`
-- [ ] Props: `priority: TaskPriority`; pill com cor do token; label acessível (Alta / Média / Baixa)
+- [x] Criar `components/checklist/priority-badge.tsx`
+- [x] Props: `priority: TaskPriority`; pill com cor do token; label acessível (Alta / Média / Baixa)
 
 **Critério de aceite**: Três variantes visuais distintas; contraste adequado em dark mode.
 
@@ -133,9 +133,9 @@ Tarefas de implementação da visão **múltiplas checklists + tarefas com prior
 **Prioridade**: Alta  
 **Esforço**: Pequeno (~1h)
 
-- [ ] Criar `components/checklist/progress-bar.tsx`
-- [ ] Props: `completed`, `total` ou `percent`; barra horizontal minimalista
-- [ ] Usar em `ChecklistCard` e header de `app/checklist/[id].tsx`
+- [x] Criar `components/checklist/progress-bar.tsx`
+- [x] Props: `completed`, `total` ou `percent`; barra horizontal minimalista
+- [x] Usar em `ChecklistCard` e header de `app/checklist/[id].tsx`
 
 ---
 
@@ -143,10 +143,10 @@ Tarefas de implementação da visão **múltiplas checklists + tarefas com prior
 **Prioridade**: Alta  
 **Esforço**: Médio (~3h)
 
-- [ ] Criar `components/checklist/task-item.tsx` (evoluir de `checklist-item-row.tsx`)
-- [ ] Checkbox, título, descrição truncada, `PriorityBadge`
-- [ ] Reaproveitar: háptico (A2), swipe delete (A5), handle drag (A4)
-- [ ] Sem UI de preço/quantidade
+- [x] Criar `components/checklist/task-item.tsx` (evoluir de `checklist-item-row.tsx`)
+- [x] Checkbox, título, descrição truncada, `PriorityBadge`
+- [x] Reaproveitar: háptico (A2), swipe delete (A5), handle drag (A4)
+- [x] Sem UI de preço/quantidade
 
 **Arquivos**: `components/checklist/task-item.tsx`, deprecar `checklist-item-row.tsx` quando migrado
 
@@ -156,9 +156,9 @@ Tarefas de implementação da visão **múltiplas checklists + tarefas com prior
 **Prioridade**: Alta  
 **Esforço**: Médio (~2h)
 
-- [ ] Refatorar `checklist-card.tsx`: nome, ícone/cor opcionais, contagem de tarefas, `ProgressBar` + % (ex.: `Estudos — 70%`)
-- [ ] Remover pills de valor monetário (`Total`, `Somado`)
-- [ ] `React.memo` mantido
+- [x] Refatorar `checklist-card.tsx`: nome, ícone/cor opcionais, contagem de tarefas, `ProgressBar` + % (ex.: `Estudos — 70%`)
+- [x] Remover pills de valor monetário (`Total`, `Somado`)
+- [x] `React.memo` mantido
 
 **Critério de aceite**: Card alinhado ao PRD §5.3; toque abre `/checklist/[id]`.
 
@@ -314,10 +314,10 @@ Fase 5 — Polimento
 ## Checklist de entrega v2.0
 
 - [x] Tipos `Task` / `TaskPriority` e migration de prioridade aplicada
-- [ ] `PriorityBadge`, `ProgressBar`, `TaskItem`, `ChecklistCard` v2 na home
+- [x] `PriorityBadge`, `ProgressBar`, `TaskItem`, `ChecklistCard` v2 na home
 - [x] CRUD checklist + tarefa com prioridade; filtro e ordenação por prioridade
 - [ ] Planner Diário removido (rotas, código, tabelas)
-- [ ] Dark mode padrão na primeira instalação; tokens de prioridade no tema
+- [ ] Dark mode padrão na primeira instalação; tokens de prioridade no tema (tokens: [x])
 - [ ] `tsc --noEmit` sem erros
 - [ ] Fluxo manual: criar checklist → tarefas com prioridades → concluir → % na home atualiza
 - [x] PRD.md e CLAUDE.md alinhados à visão v2.0

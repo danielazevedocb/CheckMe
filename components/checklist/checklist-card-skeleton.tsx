@@ -18,10 +18,9 @@ function ChecklistCardSkeletonComponent(): JSX.Element {
         <Skeleton animated={animated} width={20} height={20} borderRadius={10} />
       </View>
 
-      <View style={styles.row}>
-        <Skeleton animated={animated} height={52} borderRadius={12} style={styles.pill} />
-        <Skeleton animated={animated} height={52} borderRadius={12} style={styles.pill} />
-        <Skeleton animated={animated} height={52} borderRadius={12} style={styles.pill} />
+      <View style={styles.progress}>
+        <Skeleton animated={animated} height={14} borderRadius={6} style={styles.progressMeta} />
+        <Skeleton animated={animated} height={6} borderRadius={3} />
       </View>
     </View>
   );
@@ -45,11 +44,11 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
   },
-  row: {
-    flexDirection: 'row',
-    gap: 12,
+  progress: {
+    gap: 8,
   },
-  pill: {
-    flex: 1,
+  progressMeta: {
+    width: '40%',
+    alignSelf: 'flex-end',
   },
 });

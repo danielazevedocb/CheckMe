@@ -9,7 +9,7 @@ import {
 } from '@/types/checklist';
 
 const TASKS_ORDER_BY = `
-  done ASC,
+  done DESC,
   CASE priority
     WHEN 'HIGH' THEN 1
     WHEN 'MEDIUM' THEN 2

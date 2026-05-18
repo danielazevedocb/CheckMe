@@ -251,7 +251,7 @@ As tasks deste grupo têm dependências sequenciais. Implementar na ordem indica
 **Esforço**: Grande (~4h)
 
 #### B5a — PlannerItemRow
-- [ ] Criar `components/planner/planner-item-row.tsx`
+- [x] Criar `components/planner/planner-item-row.tsx`
 - [ ] Props: `item: PlannerItem`, `onToggle`, `onDelete`, `onEdit`
 - [ ] Checkbox + nome com strikethrough se done
 - [ ] Sem preço/quantidade (planner não tem)
@@ -259,7 +259,7 @@ As tasks deste grupo têm dependências sequenciais. Implementar na ordem indica
 - [ ] Touch target mínimo 44px
 
 #### B5b — PlannerSection
-- [ ] Criar `components/planner/planner-section.tsx`
+- [x] Criar `components/planner/planner-section.tsx`
 - [ ] Props: `section: PlannerSection`, `items: PlannerItem[]`, `onAdd`, `onToggle`, `onDelete`
 - [ ] Header da seção: label + badge de progresso (ex.: "2/3")
 - [ ] Se seção tem limite, exibir badge cinza quando no limite e desabilitar campo de adição
@@ -267,7 +267,7 @@ As tasks deste grupo têm dependências sequenciais. Implementar na ordem indica
 - [ ] Campo de adição rápida no rodapé da seção (TextField + botão "+" ou Enter)
 
 #### B5c — PlannerNote
-- [ ] Criar `components/planner/planner-note.tsx`
+- [x] Criar `components/planner/planner-note.tsx`
 - [ ] TextInput multiline para anotações livres
 - [ ] Salvo automaticamente (debounce 800ms) via `onChangeText` → `updateNote`
 - [ ] Indicador visual sutil "Salvo" após persistir
@@ -282,18 +282,18 @@ As tasks deste grupo têm dependências sequenciais. Implementar na ordem indica
 **Prioridade**: Alta (entrega visível da feature)  
 **Esforço**: Grande (~4h)
 
-- [ ] Criar `app/(tabs)/hoje.tsx`
-- [ ] Usar `useDailyPlanner(startOfDay(Date.now()))`
-- [ ] Layout em `ScrollView` (não FlatList — seções têm altura variável):
+- [x] Criar `app/(tabs)/hoje.tsx`
+- [x] Usar `useDailyPlanner(startOfDay(Date.now()))`
+- [x] Layout em `ScrollView` (não FlatList — seções têm altura variável):
   1. Header: "Hoje • 18 de maio de 2026" + barra de progresso geral
   2. Seção Prioridades (`PlannerSection`)
   3. Seção Lista do Dia (`PlannerSection`)
   4. Seção Para Amanhã (`PlannerSection`)
   5. Seção Não Esquecer (`PlannerSection`)
   6. Seção Anotações (`PlannerNote`)
-- [ ] Estados: loading (skeleton), error (mensagem + retry), empty (planner vazio criado com seções vazias)
-- [ ] Skeleton: placeholders de seção durante loading inicial
-- [ ] Atualizar `app/(tabs)/_layout.tsx` para incluir a nova aba com ícone `today-outline`
+- [x] Estados: loading (skeleton), error (mensagem + retry), empty (planner vazio criado com seções vazias)
+- [x] Skeleton: placeholders de seção durante loading inicial
+- [x] Atualizar `app/(tabs)/_layout.tsx` para incluir a nova aba com ícone `today-outline`
 
 **Arquivos**: `app/(tabs)/hoje.tsx` (novo), `app/(tabs)/_layout.tsx`
 
@@ -305,11 +305,11 @@ As tasks deste grupo têm dependências sequenciais. Implementar na ordem indica
 **Prioridade**: Média  
 **Esforço**: Pequeno (~1h)
 
-- [ ] Calcular `completedMain + completedPriorities` / `totalMain + totalPriorities`
-- [ ] Exibir barra de progresso horizontal no header da tela "Hoje"
-- [ ] Barra usa a cor `primary` do tema
-- [ ] Texto: "X de Y tarefas concluídas"
-- [ ] Animação suave da barra ao marcar item (Reanimated `withTiming`)
+- [x] Calcular `completedMain + completedPriorities` / `totalMain + totalPriorities`
+- [x] Exibir barra de progresso horizontal no header da tela "Hoje"
+- [x] Barra usa a cor `primary` do tema
+- [x] Texto: "X de Y tarefas concluídas"
+- [x] Animação suave da barra ao marcar item (Reanimated `withTiming`)
 
 **Arquivos**: `app/(tabs)/hoje.tsx`
 

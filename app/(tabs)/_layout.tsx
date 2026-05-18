@@ -39,6 +39,16 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="hoje"
+        options={{
+          title: 'Hoje',
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="today-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="concluidas"
         options={{
           title: 'Concluídas',

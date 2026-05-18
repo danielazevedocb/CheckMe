@@ -221,7 +221,7 @@ As tasks deste grupo têm dependências sequenciais. Implementar na ordem indica
 **Prioridade**: Bloqueante para B5+  
 **Esforço**: Médio (~1.5h)
 
-- [ ] Criar `hooks/use-daily-planner.ts`:
+- [x] Criar `hooks/use-daily-planner.ts`:
   ```ts
   export function useDailyPlanner(date: number) {
     // date = startOfDay(Date.now()) para "hoje"
@@ -234,7 +234,7 @@ As tasks deste grupo têm dependências sequenciais. Implementar na ordem indica
     return { planner, loading, error, refresh };
   }
   ```
-- [ ] Funções de mutação expostas via retorno do hook (ou hooks auxiliares separados):
+- [x] Funções de mutação expostas via retorno do hook (ou hooks auxiliares separados):
   - `addItem(section, name)`
   - `toggleItem(itemId, done)`
   - `removeItem(itemId)`

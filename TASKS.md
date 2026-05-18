@@ -117,7 +117,7 @@ As tasks deste grupo têm dependências sequenciais. Implementar na ordem indica
 **Prioridade**: Bloqueante para B2+  
 **Esforço**: Pequeno (~30min)
 
-- [ ] Criar `types/planner.ts` com:
+- [x] Criar `types/planner.ts` com:
   ```ts
   type PlannerSection = 'main' | 'priorities' | 'tomorrow' | 'dont_forget';
 
@@ -166,7 +166,7 @@ As tasks deste grupo têm dependências sequenciais. Implementar na ordem indica
 **Prioridade**: Bloqueante para B3+  
 **Esforço**: Pequeno (~30min)
 
-- [ ] Adicionar nova migration em `lib/database.ts`:
+- [x] Adicionar nova migration em `lib/database.ts`:
   ```sql
   CREATE TABLE IF NOT EXISTS daily_planners (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -187,8 +187,8 @@ As tasks deste grupo têm dependências sequenciais. Implementar na ordem indica
   CREATE INDEX IF NOT EXISTS idx_planner_items_planner_id
     ON planner_items(planner_id);
   ```
-- [ ] Verificar que `PRAGMA foreign_keys = ON` já está ativo (está — só confirmar)
-- [ ] Incrementar número da versão da migration
+- [x] Verificar que `PRAGMA foreign_keys = ON` já está ativo (está — só confirmar)
+- [x] Incrementar número da versão da migration
 
 **Arquivos**: `lib/database.ts`
 
@@ -200,7 +200,7 @@ As tasks deste grupo têm dependências sequenciais. Implementar na ordem indica
 **Prioridade**: Bloqueante para B4+  
 **Esforço**: Médio (~2h)
 
-- [ ] Criar `repositories/planner-repository.ts` com as funções:
+- [x] Criar `repositories/planner-repository.ts` com as funções:
   - `getOrCreatePlannerForDate(db, date): DailyPlanner` — busca ou cria (INSERT OR IGNORE + SELECT)
   - `getPlannerWithItems(db, plannerId): DailyPlannerWithItems | null`
   - `updatePlannerNote(db, plannerId, note)`

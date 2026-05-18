@@ -3,6 +3,9 @@ import { Platform } from 'react-native';
 
 const DB_NAME = 'checkme.db';
 
+/** Increment when appending new entries to MIGRATIONS. */
+export const DATABASE_SCHEMA_VERSION = 2;
+
 const MIGRATIONS = [
   `CREATE TABLE IF NOT EXISTS checklists (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,6 +26,21 @@ const MIGRATIONS = [
     done INTEGER NOT NULL DEFAULT 0
   );`,
   `CREATE INDEX IF NOT EXISTS idx_checklist_items_checklist_id ON checklist_items(checklist_id);`,
+  `CREATE TABLE IF NOT EXISTS daily_planners (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date INTEGER NOT NULL UNIQUE,
+    note TEXT NULL,
+    created_at INTEGER NOT NULL
+  );`,
+  `CREATE TABLE IF NOT EXISTS planner_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    planner_id INTEGER NOT NULL REFERENCES daily_planners(id) ON DELETE CASCADE,
+    section TEXT NOT NULL,
+    name TEXT NOT NULL,
+    done INTEGER NOT NULL DEFAULT 0,
+    position INTEGER NOT NULL DEFAULT 0
+  );`,
+  `CREATE INDEX IF NOT EXISTS idx_planner_items_planner_id ON planner_items(planner_id);`,
 ];
 
 export type Database = SQLite.SQLiteDatabase;

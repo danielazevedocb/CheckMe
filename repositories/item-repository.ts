@@ -1,118 +1,359 @@
 import type { Database } from '@/lib/database';
-import type { ChecklistItem } from '@/types/checklist';
 
-export interface ItemInput {
+import {
+
+  DEFAULT_TASK_PRIORITY,
+
+  mapTaskFromRow,
+
+  type ChecklistItem,
+
+  type ChecklistItemRow,
+
+  type ChecklistItemUpdate,
+
+  type TaskPriority,
+
+} from '@/types/checklist';
+
+
+
+const TASKS_ORDER_BY = `
+
+  CASE priority
+
+    WHEN 'HIGH' THEN 1
+
+    WHEN 'MEDIUM' THEN 2
+
+    WHEN 'LOW' THEN 3
+
+    ELSE 2
+
+  END ASC,
+
+  position ASC,
+
+  id ASC
+
+`;
+
+
+
+const TASK_SELECT_COLUMNS = `
+
+  id, checklist_id, name, position, done, priority, description, created_at
+
+`;
+
+
+
+export interface TaskInput {
+
   checklistId: number;
-  name: string;
-  price?: number | null;
-  quantity?: number | null;
+
+  /** @deprecated Use `title` */
+
+  name?: string;
+
+  title?: string;
+
+  description?: string | null;
+
+  priority?: TaskPriority;
+
   position?: number | null;
+
+  /** @deprecated Ignored after schema v5 */
+
+  price?: number | null;
+
+  /** @deprecated Ignored after schema v5 */
+
+  quantity?: number | null;
+
+  /** @deprecated Ignored after schema v5 */
+
   color?: string;
+
 }
 
-export async function createItem(db: Database, input: ItemInput): Promise<number> {
-  const color = input.color ?? '#2563EB';
-  const quantity = normalizeQuantity(input.quantity);
+
+
+/** @deprecated Use `TaskInput` */
+
+export type ItemInput = TaskInput;
+
+
+
+export interface ListTasksOptions {
+
+  priority?: TaskPriority;
+
+}
+
+
+
+export async function listTasksByChecklist(
+
+  db: Database,
+
+  checklistId: number,
+
+  options?: ListTasksOptions,
+
+): Promise<ChecklistItem[]> {
+
+  const priority = options?.priority;
+
+  const rows = priority
+
+    ? await db.getAllAsync<ChecklistItemRow>(
+
+        `SELECT ${TASK_SELECT_COLUMNS}
+
+         FROM checklist_items
+
+         WHERE checklist_id = ? AND priority = ?
+
+         ORDER BY ${TASKS_ORDER_BY};`,
+
+        [checklistId, priority],
+
+      )
+
+    : await db.getAllAsync<ChecklistItemRow>(
+
+        `SELECT ${TASK_SELECT_COLUMNS}
+
+         FROM checklist_items
+
+         WHERE checklist_id = ?
+
+         ORDER BY ${TASKS_ORDER_BY};`,
+
+        [checklistId],
+
+      );
+
+
+
+  return rows.map((row, index) => mapTaskFromRow(row, index + 1));
+
+}
+
+
+
+export async function createItem(db: Database, input: TaskInput): Promise<number> {
+
   const position = input.position ?? (await getNextPosition(db, input.checklistId));
+
+  const title = resolveItemTitle(input);
+
+  const priority = input.priority ?? DEFAULT_TASK_PRIORITY;
+
+  const description = input.description?.trim() || null;
+
+  const createdAt = Date.now();
+
   const result = await db.runAsync(
-    'INSERT INTO checklist_items (checklist_id, name, price, quantity, position, color, done) VALUES (?, ?, ?, ?, ?, ?, 0);',
-    [input.checklistId, input.name.trim(), normalizePrice(input.price), quantity, position, color],
+
+    `INSERT INTO checklist_items (
+
+       checklist_id, name, position, done, priority, description, created_at
+
+     )
+
+     VALUES (?, ?, ?, 0, ?, ?, ?);`,
+
+    [input.checklistId, title, position, priority, description, createdAt],
+
   );
 
+
+
   return Number(result.lastInsertRowId ?? 0);
+
 }
 
-export async function updateItem(db: Database, itemId: number, updates: Partial<Omit<ChecklistItem, 'id' | 'checklistId'>>): Promise<void> {
+
+
+/** @deprecated Use `createItem` */
+
+export const createTask = createItem;
+
+
+
+export async function updateItem(
+
+  db: Database,
+
+  itemId: number,
+
+  updates: ChecklistItemUpdate,
+
+): Promise<void> {
+
   const fields: string[] = [];
+
   const values: Array<string | number | null> = [];
 
-  if (typeof updates.name === 'string') {
+
+
+  const title = updates.title ?? updates.name;
+
+  if (typeof title === 'string') {
+
     fields.push('name = ?');
-    values.push(updates.name.trim());
+
+    values.push(title.trim());
+
   }
 
-  if (updates.price !== undefined) {
-    fields.push('price = ?');
-    values.push(normalizePrice(updates.price));
+
+
+  if (updates.description !== undefined) {
+
+    fields.push('description = ?');
+
+    const description = updates.description;
+
+    values.push(typeof description === 'string' ? description.trim() || null : description);
+
   }
 
-  if (updates.quantity !== undefined) {
-    fields.push('quantity = ?');
-    values.push(normalizeQuantity(updates.quantity));
+
+
+  if (updates.priority !== undefined) {
+
+    fields.push('priority = ?');
+
+    values.push(updates.priority);
+
   }
+
+
 
   if (updates.position !== undefined) {
+
     fields.push('position = ?');
+
     values.push(Math.max(1, Math.floor(Number(updates.position))));
+
   }
 
-  if (typeof updates.color === 'string') {
-    fields.push('color = ?');
-    values.push(updates.color);
-  }
 
-  if (typeof updates.done === 'boolean') {
+
+  const completed = updates.completed ?? updates.done;
+
+  if (typeof completed === 'boolean') {
+
     fields.push('done = ?');
-    values.push(updates.done ? 1 : 0);
+
+    values.push(completed ? 1 : 0);
+
   }
+
+
 
   if (fields.length === 0) {
+
     return;
+
   }
+
+
 
   values.push(itemId);
 
+
+
   const statement = `UPDATE checklist_items SET ${fields.join(', ')} WHERE id = ?;`;
+
   await db.runAsync(statement, values);
+
 }
+
+
+
+/** @deprecated Use `updateItem` */
+
+export const updateTask = updateItem;
+
+
 
 export async function setItemDone(db: Database, itemId: number, done: boolean): Promise<void> {
+
   await db.runAsync('UPDATE checklist_items SET done = ? WHERE id = ?;', [done ? 1 : 0, itemId]);
+
 }
+
+
 
 export async function deleteItem(db: Database, itemId: number): Promise<void> {
+
   await db.runAsync('DELETE FROM checklist_items WHERE id = ?;', [itemId]);
+
 }
+
+
 
 export async function deleteItemsByChecklist(db: Database, checklistId: number): Promise<void> {
+
   await db.runAsync('DELETE FROM checklist_items WHERE checklist_id = ?;', [checklistId]);
+
 }
+
+
 
 export async function reorderItems(db: Database, checklistId: number, orderedIds: number[]): Promise<void> {
+
   await db.withTransactionAsync(async () => {
+
     for (let index = 0; index < orderedIds.length; index += 1) {
+
       const itemId = orderedIds[index];
+
       await db.runAsync('UPDATE checklist_items SET position = ? WHERE id = ? AND checklist_id = ?;', [
+
         index + 1,
+
         itemId,
+
         checklistId,
+
       ]);
+
     }
+
   });
+
 }
 
-function normalizePrice(value: number | null | undefined): number | null {
-  if (value === null || value === undefined || Number.isNaN(value)) {
-    return null;
-  }
 
-  return Math.round(Number(value) * 100) / 100;
+
+function resolveItemTitle(input: TaskInput): string {
+
+  return (input.title ?? input.name ?? '').trim();
+
 }
+
+
 
 async function getNextPosition(db: Database, checklistId: number): Promise<number> {
+
   const row = await db.getFirstAsync<{ next: number }>(
+
     'SELECT COALESCE(MAX(position), 0) + 1 AS next FROM checklist_items WHERE checklist_id = ?;',
+
     [checklistId],
+
   );
 
+
+
   return row?.next ?? 1;
+
 }
 
-function normalizeQuantity(value: number | null | undefined): number {
-  if (value === null || value === undefined || Number.isNaN(value)) {
-    return 1;
-  }
 
-  const parsed = Math.max(1, Math.floor(Number(value)));
-  return parsed;
-}

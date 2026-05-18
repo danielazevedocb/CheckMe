@@ -1170,6 +1170,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  header: {
+    gap: 16,
+  },
+  footer: {
+    gap: 16,
+    marginTop: 8,
+  },
   section: {
     gap: 16,
   },

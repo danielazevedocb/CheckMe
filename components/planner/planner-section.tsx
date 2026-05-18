@@ -1,12 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  FlatList,
-  type ListRenderItemInfo,
   Pressable,
   StyleSheet,
   View,
 } from 'react-native';
+import DraggableFlatList, {
+  ScaleDecorator,
+  type RenderItemParams,
+} from 'react-native-draggable-flatlist';
 
 import { PlannerItemRow } from '@/components/planner/planner-item-row';
 import { TextField } from '@/components/ui/text-field';
@@ -23,6 +25,9 @@ interface PlannerSectionProps {
   onAdd: (name: string) => Promise<boolean>;
   onToggle: (itemId: number, done: boolean) => void;
   onDelete: (itemId: number) => void;
+  onEdit: (itemId: number) => void;
+  onReorder: (orderedIds: number[]) => Promise<void>;
+  dragEnabled?: boolean;
 }
 
 export function PlannerSectionBlock({
@@ -31,17 +36,27 @@ export function PlannerSectionBlock({
   onAdd,
   onToggle,
   onDelete,
+  onEdit,
+  onReorder,
+  dragEnabled = true,
 }: PlannerSectionProps): JSX.Element {
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
   const [draft, setDraft] = useState('');
   const [adding, setAdding] = useState(false);
   const [limitMessage, setLimitMessage] = useState<string | null>(null);
+  const [itemsOrder, setItemsOrder] = useState(items);
+  const [isDragging, setIsDragging] = useState(false);
+
+  useEffect(() => {
+    setItemsOrder(items);
+  }, [items]);
 
   const limit = SECTION_LIMITS[section];
   const isAtLimit = limit != null && items.length >= limit;
   const doneCount = items.filter((item) => item.done).length;
   const progressLabel = formatProgress(doneCount, items.length);
+  const canDrag = dragEnabled && itemsOrder.length > 1;
 
   const limitLabel = useMemo(() => {
     if (limit == null) {
@@ -79,11 +94,40 @@ export function PlannerSectionBlock({
     }
   }, [adding, draft, isAtLimit, limit, onAdd]);
 
+  const handleDragBegin = useCallback(() => {
+    setIsDragging(true);
+  }, []);
+
+  const handleDragEnd = useCallback(
+    async ({ data }: { data: PlannerItem[] }) => {
+      setIsDragging(false);
+      const previousOrder = itemsOrder;
+      setItemsOrder(data);
+
+      try {
+        await onReorder(data.map((entry) => entry.id));
+      } catch {
+        setItemsOrder(previousOrder);
+      }
+    },
+    [itemsOrder, onReorder],
+  );
+
   const renderItem = useCallback(
-    ({ item }: ListRenderItemInfo<PlannerItem>) => (
-      <PlannerItemRow item={item} onToggle={onToggle} onDelete={onDelete} />
+    ({ item, drag, isActive }: RenderItemParams<PlannerItem>) => (
+      <ScaleDecorator activeScale={1.02}>
+        <PlannerItemRow
+          item={item}
+          onToggle={onToggle}
+          onDelete={onDelete}
+          onEdit={onEdit}
+          dragEnabled={canDrag}
+          onDrag={drag}
+          isDragging={isActive}
+        />
+      </ScaleDecorator>
     ),
-    [onDelete, onToggle],
+    [canDrag, onDelete, onEdit, onToggle],
   );
 
   const keyExtractor = useCallback((item: PlannerItem) => item.id.toString(), []);
@@ -128,14 +172,18 @@ export function PlannerSectionBlock({
         </View>
       </View>
 
-      {items.length > 0 ? (
-        <FlatList
-          data={items}
+      {itemsOrder.length > 0 ? (
+        <DraggableFlatList
+          data={itemsOrder}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
+          onDragBegin={handleDragBegin}
+          onDragEnd={handleDragEnd}
           scrollEnabled={false}
           nestedScrollEnabled
           style={styles.list}
+          activationDistance={8}
+          extraData={`${section}-${isDragging}`}
         />
       ) : null}
 

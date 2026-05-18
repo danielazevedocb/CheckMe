@@ -17,12 +17,12 @@ app/              ← rotas Expo Router (só composição, sem lógica)
 components/
   ui/             ← primitivos (Button, TextField, SearchBar, FAB, EmptyState)
   checklist/      ← componentes do domínio checklist
-  planner/        ← componentes do domínio planner (a criar)
+  planner/        ← componentes do domínio planner
 contexts/         ← DatabaseContext, ThemeContext
-hooks/            ← useChecklists, useChecklist, useDailyPlanner (a criar)
+hooks/            ← useChecklists, useChecklist, useDailyPlanner
 lib/              ← database.ts (abertura SQLite + migrations)
-repositories/     ← checklist-repository.ts, item-repository.ts, planner-repository.ts (a criar)
-types/            ← checklist.ts, planner.ts (a criar)
+repositories/     ← checklist-repository.ts, item-repository.ts, planner-repository.ts
+types/            ← checklist.ts, planner.ts
 utils/            ← color.ts, format.ts
 constants/        ← checklist-colors.ts, theme.ts
 ```
@@ -132,7 +132,7 @@ Um planejador diário inspirado em planner físico. Cada dia tem:
 - **Não Esquecer** (`dont_forget`): até 5 itens com checkbox
 - **Anotações** (`note`): texto livre
 
-### Modelo de dados (a implementar)
+### Modelo de dados
 
 ```sql
 daily_planners
@@ -150,7 +150,7 @@ planner_items
   position   INTEGER DEFAULT 0
 ```
 
-### Arquivos a criar
+### Arquivos principais
 
 ```
 types/planner.ts
@@ -158,8 +158,11 @@ repositories/planner-repository.ts
 hooks/use-daily-planner.ts
 components/planner/planner-section.tsx
 components/planner/planner-item-row.tsx
-app/(tabs)/hoje.tsx          ← nova aba
-app/planner/[date].tsx       ← histórico de um dia específico
+components/planner/planner-day-view.tsx
+components/planner/planner-note.tsx
+components/planner/planner-history-list.tsx
+app/(tabs)/hoje.tsx
+app/planner/[date].tsx
 ```
 
 ### Limites de seção
@@ -179,13 +182,15 @@ app/planner/[date].tsx       ← histórico de um dia específico
 
 ---
 
-## Melhorias planejadas (v1.1)
+## Melhorias v1.1 (concluídas)
 
-1. **Drag & drop**: `react-native-draggable-flatlist` já instalado — ativar em `[id].tsx`
-2. **Memoização**: `React.memo` no `ChecklistItemRow` e `ChecklistCard`
-3. **Skeleton loading**: substituir spinner por skeleton nos cards das listas
-4. **Feedback háptico**: usar `expo-haptics` ao marcar item como feito
-5. **Swipe to delete**: `react-native-gesture-handler` para swipe em itens
+1. **Drag & drop** — checklists em `app/checklist/[id].tsx`; planner por seção em `components/planner/planner-section.tsx`
+2. **Memoização** — `React.memo` em `ChecklistItemRow` e `ChecklistCard` (e `PlannerItemRow`)
+3. **Skeleton loading** — `ChecklistCardSkeleton` nas abas de listas
+4. **Feedback háptico** — `expo-haptics` ao marcar item em checklist e planner
+5. **Swipe to delete** — `Swipeable` em `ChecklistItemRow`
+6. **Busca sticky com debounce** — abas Abertas/Concluídas
+7. **Histórico do planner** — modal em Hoje + rota `/planner/[date]`
 
 ---
 

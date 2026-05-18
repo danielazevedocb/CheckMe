@@ -1,5 +1,7 @@
-import { type ReactNode, useCallback, useEffect, useMemo } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -14,8 +16,10 @@ import Animated, {
 
 import { PlannerNote } from '@/components/planner/planner-note';
 import { PlannerSectionBlock } from '@/components/planner/planner-section';
+import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
+import { TextField } from '@/components/ui/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useThemeMode } from '@/contexts/theme-context';
@@ -130,8 +134,13 @@ export function PlannerDayView({
     addItem,
     toggleItem,
     removeItem,
+    editItem,
+    reorderSection,
     updateNote,
   } = useDailyPlanner(date);
+
+  const [editingItem, setEditingItem] = useState<{ id: number; name: string } | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const items = planner?.items ?? [];
   const dayProgress = useMemo(() => getDayProgress(items), [items]);
@@ -156,6 +165,45 @@ export function PlannerDayView({
       void removeItem(itemId);
     },
     [removeItem],
+  );
+
+  const openEditItem = useCallback(
+    (itemId: number) => {
+      const item = items.find((entry) => entry.id === itemId);
+      if (!item) {
+        return;
+      }
+
+      setEditingItem({ id: item.id, name: item.name });
+    },
+    [items],
+  );
+
+  const handleSaveItemEdit = useCallback(async () => {
+    if (!editingItem) {
+      return;
+    }
+
+    const name = editingItem.name.trim();
+    if (!name) {
+      Alert.alert('Informe o nome do item');
+      return;
+    }
+
+    setSavingEdit(true);
+    try {
+      await editItem(editingItem.id, name);
+      setEditingItem(null);
+    } catch {
+      Alert.alert('Erro', 'Não foi possível atualizar o item.');
+    } finally {
+      setSavingEdit(false);
+    }
+  }, [editItem, editingItem]);
+
+  const handleReorder = useCallback(
+    (section: PlannerSection) => (orderedIds: number[]) => reorderSection(section, orderedIds),
+    [reorderSection],
   );
 
   if (loading && !planner) {
@@ -236,10 +284,39 @@ export function PlannerDayView({
           onAdd={handleAdd(section)}
           onToggle={handleToggle}
           onDelete={handleDelete}
+          onEdit={openEditItem}
+          onReorder={handleReorder(section)}
+          dragEnabled={editingItem === null}
         />
       ))}
 
       <PlannerNote value={noteValue} onChangeText={updateNote} />
+
+      <Modal
+        transparent
+        visible={Boolean(editingItem)}
+        animationType="slide"
+        onRequestClose={() => setEditingItem(null)}
+      >
+        <View style={[styles.modalOverlay, { backgroundColor: palette.overlay }]}>
+          <View
+            style={[styles.modalContent, { backgroundColor: palette.surface }]}
+            accessibilityLabel="Editar item do planner"
+          >
+            <TextField
+              label="Nome do item"
+              value={editingItem?.name ?? ''}
+              onChangeText={(value) =>
+                setEditingItem((prev) => (prev ? { ...prev, name: value } : prev))
+              }
+            />
+            <View style={styles.modalActions}>
+              <Button label="Cancelar" variant="ghost" onPress={() => setEditingItem(null)} />
+              <Button label="Salvar" onPress={handleSaveItemEdit} loading={savingEdit} />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -294,5 +371,20 @@ const styles = StyleSheet.create({
   inlineError: {
     marginBottom: 12,
     fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    borderRadius: 16,
+    padding: 20,
+    gap: 16,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
   },
 });

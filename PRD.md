@@ -3,7 +3,7 @@
 **Versão**: 1.1  
 **Data**: 2026-05-18  
 **Autor**: Daniel Azevedo  
-**Status**: Em desenvolvimento ativo
+**Status**: v1.1 implementada — validação Android e release pendentes
 
 ---
 
@@ -285,7 +285,7 @@ Aba "Hoje"
 ```
 Aba "Hoje" → botão "Ver histórico" (header)
   → Lista de datas com planner salvo
-  → Toca data → /planner/[date] (somente leitura ou editável — definir)
+  → Toca data → /planner/[date] (edição igual à aba Hoje)
 ```
 
 ### 8.4 Reordenar Itens (após M1)
@@ -371,18 +371,17 @@ Aba "Hoje" → botão "Ver histórico" (header)
 - Checklists com dois modos, cores, agendamento, estatísticas financeiras
 - Tema light/dark, SQLite local com migrations
 
-### v1.1 — Em desenvolvimento
-- **M1** Drag & drop para reordenar itens de checklist
+### v1.1 — Implementado (validação Android pendente)
+- **M1** Drag & drop para reordenar itens de checklist e planner
 - **M2** Feedback háptico ao marcar item feito
 - **M3** Skeleton loading nas listas
 - **M4** Swipe to delete em itens
 - **M5** Memoização de componentes de lista
 - **M6** Campo de busca sticky com debounce
-- **F1** Planner Diário — aba "Hoje" com seções e anotações
+- **F1** Planner Diário — aba "Hoje" com seções, anotações, progresso e histórico (`/planner/[date]`)
 
 ### v1.2 — Planejado
 - Notificações locais na data agendada (`expo-notifications`)
-- Histórico navegável do Planner (tela `/planner/[date]`)
 - Exportação/backup do banco (JSON ou SQLite export)
 
 ### v2.0 — Longo prazo (requer validação)

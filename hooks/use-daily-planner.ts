@@ -8,7 +8,9 @@ import {
   getOrCreatePlannerForDate,
   getPlannerWithItems,
   PlannerSectionFullError,
+  reorderPlannerItems,
   setPlannerItemDone,
+  updatePlannerItem,
   updatePlannerNote,
 } from '@/repositories/planner-repository';
 import type { DailyPlannerWithItems, PlannerSection } from '@/types/planner';
@@ -24,6 +26,8 @@ export interface UseDailyPlannerResult {
   addItem: (section: PlannerSection, name: string) => Promise<boolean>;
   toggleItem: (itemId: number, done: boolean) => Promise<void>;
   removeItem: (itemId: number) => Promise<void>;
+  editItem: (itemId: number, name: string) => Promise<void>;
+  reorderSection: (section: PlannerSection, orderedIds: number[]) => Promise<void>;
   updateNote: (note: string) => void;
 }
 
@@ -127,6 +131,44 @@ export function useDailyPlanner(date?: number): UseDailyPlannerResult {
     [db, load],
   );
 
+  const editItem = useCallback(
+    async (itemId: number, name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) {
+        return;
+      }
+
+      try {
+        await updatePlannerItem(db, itemId, trimmed);
+        await load();
+        setError(null);
+      } catch (err) {
+        setError(err as Error);
+        throw err;
+      }
+    },
+    [db, load],
+  );
+
+  const reorderSection = useCallback(
+    async (section: PlannerSection, orderedIds: number[]) => {
+      const current = plannerRef.current;
+      if (!current || orderedIds.length === 0) {
+        return;
+      }
+
+      try {
+        await reorderPlannerItems(db, current.id, section, orderedIds);
+        await load();
+        setError(null);
+      } catch (err) {
+        setError(err as Error);
+        throw err;
+      }
+    },
+    [db, load],
+  );
+
   const removeItem = useCallback(
     async (itemId: number) => {
       const current = plannerRef.current;
@@ -201,6 +243,8 @@ export function useDailyPlanner(date?: number): UseDailyPlannerResult {
     addItem,
     toggleItem,
     removeItem,
+    editItem,
+    reorderSection,
     updateNote,
   };
 }

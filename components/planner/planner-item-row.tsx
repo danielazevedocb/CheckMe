@@ -11,7 +11,10 @@ interface PlannerItemRowProps {
   item: PlannerItem;
   onToggle: (itemId: number, done: boolean) => void;
   onDelete: (itemId: number) => void;
-  onEdit?: (itemId: number) => void;
+  onEdit: (itemId: number) => void;
+  onDrag?: () => void;
+  dragEnabled?: boolean;
+  isDragging?: boolean;
 }
 
 function PlannerItemRowComponent({
@@ -19,6 +22,9 @@ function PlannerItemRowComponent({
   onToggle,
   onDelete,
   onEdit,
+  onDrag,
+  dragEnabled = false,
+  isDragging = false,
 }: PlannerItemRowProps): JSX.Element {
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
@@ -35,7 +41,7 @@ function PlannerItemRowComponent({
   }, [item.id, onDelete]);
 
   const handleEditPress = useCallback(() => {
-    onEdit?.(item.id);
+    onEdit(item.id);
   }, [item.id, onEdit]);
 
   return (
@@ -71,17 +77,27 @@ function PlannerItemRowComponent({
         </Text>
       </Pressable>
       <View style={styles.actions}>
-        {onEdit ? (
+        {dragEnabled ? (
           <Pressable
-            onPress={handleEditPress}
-            style={styles.actionButton}
+            onLongPress={onDrag}
+            delayLongPress={150}
+            disabled={!onDrag || isDragging}
+            style={styles.dragHandle}
             accessibilityRole="button"
-            accessibilityLabel={`Editar ${item.name}`}
-            hitSlop={8}
+            accessibilityLabel="Reordenar item"
           >
-            <Text style={[styles.actionLabel, { color: palette.primary }]}>Editar</Text>
+            <Ionicons name="reorder-three-outline" size={22} color={palette.textMuted} />
           </Pressable>
         ) : null}
+        <Pressable
+          onPress={handleEditPress}
+          style={styles.actionButton}
+          accessibilityRole="button"
+          accessibilityLabel={`Editar ${item.name}`}
+          hitSlop={8}
+        >
+          <Text style={[styles.actionLabel, { color: palette.primary }]}>Editar</Text>
+        </Pressable>
         <Pressable
           onPress={handleDeletePress}
           style={styles.actionButton}
@@ -127,9 +143,16 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    alignItems: 'center',
     gap: 12,
     paddingHorizontal: 16,
     paddingBottom: 12,
+  },
+  dragHandle: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionButton: {
     minHeight: 44,

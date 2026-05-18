@@ -252,25 +252,25 @@ As tasks deste grupo têm dependências sequenciais. Implementar na ordem indica
 
 #### B5a — PlannerItemRow
 - [x] Criar `components/planner/planner-item-row.tsx`
-- [ ] Props: `item: PlannerItem`, `onToggle`, `onDelete`, `onEdit`
-- [ ] Checkbox + nome com strikethrough se done
-- [ ] Sem preço/quantidade (planner não tem)
-- [ ] Feedback háptico no toggle (igual A2)
-- [ ] Touch target mínimo 44px
+- [x] Props: `item: PlannerItem`, `onToggle`, `onDelete`, `onEdit`
+- [x] Checkbox + nome com strikethrough se done
+- [x] Sem preço/quantidade (planner não tem)
+- [x] Feedback háptico no toggle (igual A2)
+- [x] Touch target mínimo 44px
 
 #### B5b — PlannerSection
 - [x] Criar `components/planner/planner-section.tsx`
-- [ ] Props: `section: PlannerSection`, `items: PlannerItem[]`, `onAdd`, `onToggle`, `onDelete`
-- [ ] Header da seção: label + badge de progresso (ex.: "2/3")
-- [ ] Se seção tem limite, exibir badge cinza quando no limite e desabilitar campo de adição
-- [ ] FlatList de `PlannerItemRow` dentro da seção
-- [ ] Campo de adição rápida no rodapé da seção (TextField + botão "+" ou Enter)
+- [x] Props: `section: PlannerSection`, `items: PlannerItem[]`, `onAdd`, `onToggle`, `onDelete`
+- [x] Header da seção: label + badge de progresso (ex.: "2/3")
+- [x] Se seção tem limite, exibir badge cinza quando no limite e desabilitar campo de adição
+- [x] FlatList de `PlannerItemRow` dentro da seção
+- [x] Campo de adição rápida no rodapé da seção (TextField + botão "+" ou Enter)
 
 #### B5c — PlannerNote
 - [x] Criar `components/planner/planner-note.tsx`
-- [ ] TextInput multiline para anotações livres
-- [ ] Salvo automaticamente (debounce 800ms) via `onChangeText` → `updateNote`
-- [ ] Indicador visual sutil "Salvo" após persistir
+- [x] TextInput multiline para anotações livres
+- [x] Salvo automaticamente (debounce 800ms) via `onChangeText` → `updateNote`
+- [x] Indicador visual sutil "Salvo" após persistir
 
 **Arquivos**: `components/planner/planner-item-row.tsx` (novo), `components/planner/planner-section.tsx` (novo), `components/planner/planner-note.tsx` (novo)
 
@@ -392,9 +392,9 @@ Semana 4:
 
 ## Checklist de entrega da v1.1
 
-- [ ] Todos os itens do Grupo A (A1–A6) concluídos
-- [ ] Todos os itens B1–B7 do Planner Diário concluídos
-- [ ] C1 e C2 concluídos
-- [ ] App compila sem erros TypeScript (`tsc --noEmit`)
-- [ ] App roda no Android sem crashes nos fluxos principais
-- [ ] PRD.md e CLAUDE.md atualizados se houver mudanças de escopo
+- [x] Todos os itens do Grupo A (A1–A6) concluídos
+- [x] Todos os itens B1–B7 do Planner Diário concluídos
+- [x] C1 e C2 concluídos
+- [x] App compila sem erros TypeScript (`tsc --noEmit`)
+- [ ] App roda no Android sem crashes nos fluxos principais *(validação manual em device/emulador)*
+- [x] PRD.md e CLAUDE.md atualizados se houver mudanças de escopo

@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import { Colors } from '@/constants/theme';
 import { useThemeMode } from '@/contexts/theme-context';
@@ -14,10 +15,14 @@ interface ChecklistItemRowProps {
   onToggle: (itemId: number) => void;
   onEdit: (itemId: number) => void;
   onDelete: (itemId: number) => void;
+  onSwipeDelete?: (itemId: number) => void;
   mode?: ChecklistMode;
   onDrag?: () => void;
   dragEnabled?: boolean;
   isDragging?: boolean;
+  swipeEnabled?: boolean;
+  onSwipeableWillOpen?: (itemId: number) => void;
+  onSwipeableRef?: (itemId: number, ref: SwipeableMethods | null) => void;
   onMoveUp?: (itemId: number) => void;
   onMoveDown?: (itemId: number) => void;
   canMoveUp?: boolean;
@@ -29,10 +34,14 @@ function ChecklistItemRowComponent({
   onToggle,
   onEdit,
   onDelete,
+  onSwipeDelete,
   mode = 'list',
   onDrag,
   dragEnabled = false,
   isDragging = false,
+  swipeEnabled = true,
+  onSwipeableWillOpen,
+  onSwipeableRef,
   onMoveUp,
   onMoveDown,
   canMoveUp = false,
@@ -40,6 +49,7 @@ function ChecklistItemRowComponent({
 }: ChecklistItemRowProps): JSX.Element {
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
+  const swipeableRef = useRef<SwipeableMethods | null>(null);
   const iconName = item.done ? 'checkmark-circle' : 'ellipse-outline';
   const accent = item.color ?? palette.primary;
   const backgroundTint = blendWithSurface(accent, resolved === 'dark' ? 0.28 : 0.12);
@@ -62,7 +72,42 @@ function ChecklistItemRowComponent({
     onToggle(item.id);
   }, [item.id, onToggle]);
 
-  return (
+  const handleSwipeDeletePress = useCallback(() => {
+    swipeableRef.current?.close();
+    if (onSwipeDelete) {
+      onSwipeDelete(item.id);
+    } else {
+      onDelete(item.id);
+    }
+  }, [item.id, onDelete, onSwipeDelete]);
+
+  useEffect(() => {
+    return () => {
+      onSwipeableRef?.(item.id, null);
+    };
+  }, [item.id, onSwipeableRef]);
+
+  const handleSwipeableWillOpen = useCallback(() => {
+    if (swipeableRef.current) {
+      onSwipeableRef?.(item.id, swipeableRef.current);
+    }
+    onSwipeableWillOpen?.(item.id);
+  }, [item.id, onSwipeableRef, onSwipeableWillOpen]);
+
+  const renderRightActions = useCallback(() => {
+    return (
+      <Pressable
+        onPress={handleSwipeDeletePress}
+        style={[styles.deleteAction, { backgroundColor: palette.destructive }]}
+        accessibilityRole="button"
+        accessibilityLabel="Excluir item"
+      >
+        <Text style={[styles.deleteActionLabel, { color: palette.primaryForeground }]}>Excluir</Text>
+      </Pressable>
+    );
+  }, [handleSwipeDeletePress, palette.destructive, palette.primaryForeground]);
+
+  const rowContent = (
     <View
       style={[
         styles.container,
@@ -108,17 +153,19 @@ function ChecklistItemRowComponent({
             <Pressable
               onPress={() => onMoveUp?.(item.id)}
               disabled={!canMoveUp || !onMoveUp}
-              style={[styles.moveButton, !canMoveUp && styles.moveButtonDisabled]} 
+              style={[styles.moveButton, !canMoveUp && styles.moveButtonDisabled]}
               accessibilityRole="button"
-              accessibilityLabel="Mover para cima">
+              accessibilityLabel="Mover para cima"
+            >
               <Ionicons name="chevron-up" size={20} color={canMoveUp ? accent : palette.textMuted} />
             </Pressable>
             <Pressable
               onPress={() => onMoveDown?.(item.id)}
               disabled={!canMoveDown || !onMoveDown}
-              style={[styles.moveButton, !canMoveDown && styles.moveButtonDisabled]} 
+              style={[styles.moveButton, !canMoveDown && styles.moveButtonDisabled]}
               accessibilityRole="button"
-              accessibilityLabel="Mover para baixo">
+              accessibilityLabel="Mover para baixo"
+            >
               <Ionicons name="chevron-down" size={20} color={canMoveDown ? accent : palette.textMuted} />
             </Pressable>
           </View>
@@ -144,11 +191,31 @@ function ChecklistItemRowComponent({
       ) : null}
     </View>
   );
+
+  if (!swipeEnabled || mode !== 'list') {
+    return rowContent;
+  }
+
+  return (
+    <Swipeable
+      ref={swipeableRef}
+      enabled={swipeEnabled && !isDragging}
+      overshootRight={false}
+      friction={2}
+      rightThreshold={40}
+      onSwipeableWillOpen={handleSwipeableWillOpen}
+      renderRightActions={renderRightActions}
+      containerStyle={styles.swipeContainer}
+    >
+      {rowContent}
+    </Swipeable>
+  );
 }
 
 export const ChecklistItemRow = memo(ChecklistItemRowComponent);
 
 const styles = StyleSheet.create({
+  swipeContainer: {},
   container: {
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
@@ -202,5 +269,16 @@ const styles = StyleSheet.create({
   dragHandle: {
     paddingVertical: 4,
     paddingHorizontal: 4,
+  },
+  deleteAction: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 96,
+    borderRadius: 16,
+    marginLeft: 8,
+  },
+  deleteActionLabel: {
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

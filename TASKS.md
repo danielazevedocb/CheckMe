@@ -64,12 +64,12 @@ Tarefas de implementação organizadas por prioridade e dependência. Cada task 
 **Prioridade**: Média  
 **Esforço**: Médio (~3h)
 
-- [ ] Ativar `DraggableFlatList` no lugar da `FlatList` em `app/checklist/[id].tsx`
-- [ ] Adicionar handle visual (ícone `reorder-three-outline`) à direita de cada `ChecklistItemRow`
-- [ ] Handle só visível quando não há item sendo editado
-- [ ] Chamar `reorderItems(db, checklistId, newOrder)` no `onDragEnd`
-- [ ] Chamar `refresh()` após reordenação para sincronizar estado
-- [ ] Garantir que drag está desabilitado em checklists no modo texto
+- [x] Ativar `DraggableFlatList` no lugar da `FlatList` em `app/checklist/[id].tsx`
+- [x] Adicionar handle visual (ícone `reorder-three-outline`) à direita de cada `ChecklistItemRow`
+- [x] Handle só visível quando não há item sendo editado
+- [x] Chamar `reorderItems(db, checklistId, newOrder)` no `onDragEnd`
+- [x] Chamar `refresh()` após reordenação para sincronizar estado
+- [x] Garantir que drag está desabilitado em checklists no modo texto
 
 **Arquivos**: `app/checklist/[id].tsx`, `components/checklist/checklist-item-row.tsx`
 
@@ -81,11 +81,11 @@ Tarefas de implementação organizadas por prioridade e dependência. Cada task 
 **Prioridade**: Baixa  
 **Esforço**: Médio (~2h)
 
-- [ ] Usar `Swipeable` do `react-native-gesture-handler` em `ChecklistItemRow`
-- [ ] Swipe para esquerda revela botão "Excluir" com fundo vermelho (`destructive` do tema)
-- [ ] Botão confirma e chama `deleteItem()` sem modal de confirmação (swipe já é intencional)
-- [ ] Fechar swipe automaticamente se usuário abre outro item
-- [ ] Garantir que swipe e drag & drop (A4) coexistam sem conflito (desativar swipe durante drag)
+- [x] Usar `Swipeable` do `react-native-gesture-handler` em `ChecklistItemRow`
+- [x] Swipe para esquerda revela botão "Excluir" com fundo vermelho (`destructive` do tema)
+- [x] Botão confirma e chama `deleteItem()` sem modal de confirmação (swipe já é intencional)
+- [x] Fechar swipe automaticamente se usuário abre outro item
+- [x] Garantir que swipe e drag & drop (A4) coexistam sem conflito (desativar swipe durante drag)
 
 **Arquivos**: `components/checklist/checklist-item-row.tsx`
 
@@ -97,9 +97,9 @@ Tarefas de implementação organizadas por prioridade e dependência. Cada task 
 **Prioridade**: Baixa  
 **Esforço**: Pequeno (~1h)
 
-- [ ] Mover `SearchBar` para fora da `FlatList` (antes do `ListHeaderComponent`) para ficar sticky
-- [ ] Adicionar debounce de 300ms no `setSearchTerm` usando `useCallback` + `setTimeout`/`useEffect`
-- [ ] Garantir que a barra não suma durante scroll da lista
+- [x] Mover `SearchBar` para fora da `FlatList` (antes do `ListHeaderComponent`) para ficar sticky
+- [x] Adicionar debounce de 300ms no `setSearchTerm` usando `useCallback` + `setTimeout`/`useEffect`
+- [x] Garantir que a barra não suma durante scroll da lista
 
 **Arquivos**: `app/(tabs)/abertas.tsx`, `app/(tabs)/concluidas.tsx`, `hooks/use-checklists.ts`
 

@@ -10,6 +10,7 @@ import { SearchBar } from '@/components/ui/search-bar';
 import { Colors } from '@/constants/theme';
 import { useThemeMode } from '@/contexts/theme-context';
 import { useChecklists } from '@/hooks/use-checklists';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import type { ChecklistSummary } from '@/types/checklist';
 
 function ListSeparator(): JSX.Element {
@@ -26,8 +27,9 @@ export default function AbertasScreen(): JSX.Element {
   const router = useRouter();
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
-  const [search, setSearch] = useState('');
-  const { data, loading, refresh, error } = useChecklists('open', search);
+  const [searchInput, setSearchInput] = useState('');
+  const debouncedSearch = useDebouncedValue(searchInput, 300);
+  const { data, loading, refresh, error } = useChecklists('open', debouncedSearch);
 
   const openChecklist = useCallback(
     (checklistId: number) => {
@@ -47,7 +49,7 @@ export default function AbertasScreen(): JSX.Element {
 
   return (
     <View style={[styles.container, { backgroundColor: palette.background }]} accessibilityLabel="Listas em aberto">
-      <SearchBar value={search} onChangeText={setSearch} placeholder="Buscar listas" />
+      <SearchBar value={searchInput} onChangeText={setSearchInput} placeholder="Buscar listas" />
 
       {loading && data.length === 0 ? (
         <View style={styles.skeletonList}>

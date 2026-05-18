@@ -3,14 +3,13 @@ import DateTimePicker, { DateTimePickerAndroid, type DateTimePickerEvent } from 
 import * as Haptics from 'expo-haptics';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
     FlatList,
     Keyboard,
     KeyboardAvoidingView,
-    type ListRenderItemInfo,
     Modal,
     Platform,
     Pressable,
@@ -18,6 +17,11 @@ import {
     Text,
     View,
 } from 'react-native';
+import DraggableFlatList, {
+    ScaleDecorator,
+    type RenderItemParams,
+} from 'react-native-draggable-flatlist';
+import type { SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import { ChecklistItemRow } from '@/components/checklist/checklist-item-row';
 import { ThemedText } from '@/components/themed-text';
@@ -90,8 +94,11 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   const [updatingColor, setUpdatingColor] = useState(false);
   const [itemsOrder, setItemsOrder] = useState<ChecklistItem[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const flatListRef = useRef<FlatList<ChecklistItem> | null>(null);
+  const draggableListRef = useRef<ComponentRef<typeof DraggableFlatList<ChecklistItem>> | null>(null);
   const itemsOrderRef = useRef(itemsOrder);
+  const swipeableRefs = useRef<Record<number, SwipeableMethods | null>>({});
 
   useEffect(() => {
     itemsOrderRef.current = itemsOrder;
@@ -135,6 +142,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
       // Scroll to end when keyboard shows to bring input fields into view
       setTimeout(() => {
+        draggableListRef.current?.scrollToEnd({ animated: true });
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     });
@@ -289,6 +297,36 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     ]);
   }, [db, refresh]);
 
+  const handleSwipeDeleteItem = useCallback(
+    async (itemId: number) => {
+      try {
+        await deleteItem(db, itemId);
+        delete swipeableRefs.current[itemId];
+        await refresh();
+      } catch (err) {
+        Alert.alert('Erro', 'Não foi possível remover o item.');
+        console.error(err);
+      }
+    },
+    [db, refresh],
+  );
+
+  const closeOtherSwipeables = useCallback((activeItemId: number) => {
+    Object.entries(swipeableRefs.current).forEach(([itemId, ref]) => {
+      if (Number(itemId) !== activeItemId) {
+        ref?.close();
+      }
+    });
+  }, []);
+
+  const handleSwipeableRef = useCallback((itemId: number, ref: SwipeableMethods | null) => {
+    if (ref) {
+      swipeableRefs.current[itemId] = ref;
+      return;
+    }
+    delete swipeableRefs.current[itemId];
+  }, []);
+
   const handleMoveItem = useCallback(async (itemId: number, direction: 'up' | 'down') => {
     const currentOrder = itemsOrderRef.current;
     const currentIndex = currentOrder.findIndex((entry) => entry.id === itemId);
@@ -368,9 +406,84 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   }, []);
 
   const checklistMode = checklist?.mode ?? 'list';
+  const dragEnabled = checklistMode === 'list' && editingItem === null;
 
-  const renderChecklistItem = useCallback(
-    ({ item, index }: ListRenderItemInfo<ChecklistItem>) => {
+  const handleDragBegin = useCallback(() => {
+    setIsDragging(true);
+    Object.values(swipeableRefs.current).forEach((ref) => {
+      ref?.close();
+    });
+  }, []);
+
+  const handleDragEnd = useCallback(
+    async ({ data }: { data: ChecklistItem[] }) => {
+      setIsDragging(false);
+      const previousOrder = itemsOrderRef.current;
+      setItemsOrder(data);
+
+      try {
+        await reorderItems(
+          db,
+          checklistId,
+          data.map((entry) => entry.id),
+        );
+        await refresh();
+      } catch (err) {
+        Alert.alert('Erro', 'Não foi possível reordenar os itens.');
+        console.error(err);
+        setItemsOrder(previousOrder);
+      }
+    },
+    [checklistId, db, refresh],
+  );
+
+  const renderDraggableItem = useCallback(
+    ({ item, drag, isActive, getIndex }: RenderItemParams<ChecklistItem>) => {
+      const index = getIndex() ?? 0;
+      const itemCount = itemsOrderRef.current.length;
+      const canMoveUp = index > 0;
+      const canMoveDown = index < itemCount - 1;
+
+      return (
+        <ScaleDecorator activeScale={1.02}>
+          <ChecklistItemRow
+            item={item}
+            onToggle={handleToggleItem}
+            onEdit={openEditItem}
+            onDelete={handleDeleteItem}
+            onSwipeDelete={handleSwipeDeleteItem}
+            mode={checklistMode}
+            dragEnabled={dragEnabled}
+            onDrag={drag}
+            isDragging={isActive}
+            swipeEnabled={!isDragging && !isActive}
+            onSwipeableWillOpen={closeOtherSwipeables}
+            onSwipeableRef={handleSwipeableRef}
+            onMoveUp={canMoveUp ? handleMoveUp : undefined}
+            onMoveDown={canMoveDown ? handleMoveDown : undefined}
+            canMoveUp={canMoveUp}
+            canMoveDown={canMoveDown}
+          />
+        </ScaleDecorator>
+      );
+    },
+    [
+      checklistMode,
+      closeOtherSwipeables,
+      dragEnabled,
+      handleDeleteItem,
+      handleMoveDown,
+      handleMoveUp,
+      handleSwipeDeleteItem,
+      handleSwipeableRef,
+      handleToggleItem,
+      isDragging,
+      openEditItem,
+    ],
+  );
+
+  const renderStaticItem = useCallback(
+    ({ item, index }: { item: ChecklistItem; index: number }) => {
       const itemCount = itemsOrderRef.current.length;
       const canMoveUp = index > 0;
       const canMoveDown = index < itemCount - 1;
@@ -383,6 +496,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
           onDelete={handleDeleteItem}
           mode={checklistMode}
           dragEnabled={false}
+          swipeEnabled={false}
           onMoveUp={canMoveUp ? handleMoveUp : undefined}
           onMoveDown={canMoveDown ? handleMoveDown : undefined}
           canMoveUp={canMoveUp}
@@ -648,27 +762,51 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     </View>
   );
 
-  const renderNativeList = () => (
-    <FlatList
-      ref={flatListRef}
-      style={styles.flex}
-      contentContainerStyle={styles.listContent}
-      data={itemsOrder}
-      extraData={refreshKey}
-      keyExtractor={keyExtractor}
-      renderItem={renderChecklistItem}
-      keyboardShouldPersistTaps="handled"
-      ListHeaderComponent={renderHeader}
-      ListFooterComponent={renderFooter}
-      ListEmptyComponent={
-        <View style={styles.emptyList}>
-          <ThemedText style={{ color: palette.textMuted }}>Nenhum item adicionado ainda.</ThemedText>
-        </View>
-      }
-      accessibilityLabel={`Checklist ${checklist.title}`}
-      showsVerticalScrollIndicator={false}
-    />
+  const listEmptyComponent = (
+    <View style={styles.emptyList}>
+      <ThemedText style={{ color: palette.textMuted }}>Nenhum item adicionado ainda.</ThemedText>
+    </View>
   );
+
+  const renderNativeList = () => {
+    const listProps = {
+      style: styles.flex,
+      contentContainerStyle: styles.listContent,
+      keyboardShouldPersistTaps: 'handled' as const,
+      ListHeaderComponent: renderHeader,
+      ListFooterComponent: renderFooter,
+      ListEmptyComponent: listEmptyComponent,
+      accessibilityLabel: `Checklist ${checklist.title}`,
+      showsVerticalScrollIndicator: false,
+    };
+
+    if (isListMode) {
+      return (
+        <DraggableFlatList
+          ref={draggableListRef}
+          {...listProps}
+          data={itemsOrder}
+          extraData={`${refreshKey}-${editingItem?.id ?? 'none'}-${isDragging}`}
+          keyExtractor={keyExtractor}
+          renderItem={renderDraggableItem}
+          onDragBegin={handleDragBegin}
+          onDragEnd={handleDragEnd}
+          activationDistance={8}
+        />
+      );
+    }
+
+    return (
+      <FlatList
+        ref={flatListRef}
+        {...listProps}
+        data={itemsOrder}
+        extraData={refreshKey}
+        keyExtractor={keyExtractor}
+        renderItem={({ item, index }) => renderStaticItem({ item, index })}
+      />
+    );
+  };
 
   return (
     <KeyboardAvoidingView

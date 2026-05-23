@@ -1,4 +1,3 @@
-import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import {
@@ -10,7 +9,7 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { ActivityIndicator, ColorSchemeName, View } from 'react-native';
+import { ActivityIndicator, ColorSchemeName, StyleSheet, View } from 'react-native';
 import { useColorScheme as useSystemColorScheme } from 'react-native';
 
 const STORAGE_KEY = '@checkme:theme-mode';
@@ -81,19 +80,25 @@ export function ThemeProvider({ children }: PropsWithChildren): JSX.Element {
 
   return (
     <ThemeContext.Provider value={contextValue}>
-      <NavigationThemeProvider value={resolved === 'dark' ? DarkTheme : DefaultTheme}>
-        <StatusBar style={resolved === 'dark' ? 'light' : 'dark'} />
-        {isReady ? (
-          children
-        ) : (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <ActivityIndicator />
-          </View>
-        )}
-      </NavigationThemeProvider>
+      <StatusBar style={resolved === 'dark' ? 'light' : 'dark'} />
+      {children}
+      {!isReady ? (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator />
+        </View>
+      ) : null}
     </ThemeContext.Provider>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
 
 export function useThemeMode(): ThemeContextValue {
   const value = useContext(ThemeContext);

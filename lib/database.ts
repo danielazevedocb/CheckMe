@@ -150,9 +150,7 @@ async function migrateV5CleanupLegacySchema(db: Database): Promise<void> {
   }
 
   const itemColumns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(checklist_items);');
-  const hasLegacyItemColumns = itemColumns.some(
-    (col) => col.name === 'price' || col.name === 'quantity' || col.name === 'color',
-  );
+  const hasLegacyItemColumns = itemColumns.some((col) => col.name === 'color');
 
   if (hasLegacyItemColumns) {
     await db.execAsync(`

@@ -3,24 +3,41 @@ import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
+import { Colors } from '@/constants/theme';
 import { DatabaseProvider } from '@/contexts/database-context';
-import { ThemeProvider } from '@/contexts/theme-context';
+import { ThemeProvider, useThemeMode } from '@/contexts/theme-context';
 
 export const unstable_settings = {
   anchor: '(tabs)',
 };
+
+function ThemedStack() {
+  const { resolved } = useThemeMode();
+  const palette = Colors[resolved];
+
+  return (
+    <Stack
+      screenOptions={{
+        headerStyle: { backgroundColor: palette.background },
+        headerTitleStyle: { color: palette.text },
+        headerTintColor: palette.text,
+        headerShadowVisible: false,
+      }}
+    >
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="checklist/[id]" options={{ title: 'Checklist' }} />
+      <Stack.Screen name="checklist/edit/[id]" options={{ title: 'Editar checklist' }} />
+      <Stack.Screen name="config" options={{ title: 'Configurações' }} />
+    </Stack>
+  );
+}
 
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
         <DatabaseProvider>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="checklist/[id]" options={{ title: 'Checklist' }} />
-            <Stack.Screen name="checklist/edit/[id]" options={{ title: 'Editar checklist' }} />
-            <Stack.Screen name="config" options={{ title: 'Configurações' }} />
-          </Stack>
+          <ThemedStack />
         </DatabaseProvider>
       </ThemeProvider>
     </GestureHandlerRootView>

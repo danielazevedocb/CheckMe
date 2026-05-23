@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useHeaderHeight } from '@react-navigation/elements';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { type ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -56,7 +55,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   }, [idParam]);
   const router = useRouter();
   const navigation = useNavigation();
-  const headerHeight = useHeaderHeight();
+  const headerHeight = 56;
   const db = useDatabase();
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
@@ -134,21 +133,16 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   }, [taskModal]);
 
   const handleToggleItem = useCallback(
-    async (itemId: number) => {
+    async (itemId: number, currentCompleted: boolean) => {
       const items = itemsOrderRef.current;
-      const item = items.find((entry) => entry.id === itemId);
-      if (!item) {
-        return;
-      }
-
       const totalItems = items.length;
       const completedItems = items.filter((entry) => entry.completed).length;
-      const markingDone = !item.completed;
+      const markingDone = !currentCompleted;
       const willCompleteAll =
         markingDone && totalItems > 0 && completedItems + 1 === totalItems;
 
       try {
-        await setItemDone(db, itemId, !item.completed);
+        await setItemDone(db, itemId, !currentCompleted);
         await refresh();
         if (willCompleteAll) {
           void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -378,14 +372,32 @@ export default function ChecklistDetailsScreen(): JSX.Element {
             const p = item.price ?? null;
             return p != null ? sum + qty * p : sum;
           }, 0);
-          return grandTotal > 0 ? (
-            <View style={styles.totalRow}>
-              <ThemedText style={[styles.totalLabel, { color: palette.textMuted }]}>Total estimado</ThemedText>
-              <ThemedText type="defaultSemiBold" style={{ color: palette.text }}>
-                R$ {grandTotal.toFixed(2)}
-              </ThemedText>
-            </View>
-          ) : null;
+          const completedTotal = itemsOrder.reduce((sum, item) => {
+            if (!item.completed) return sum;
+            const qty = item.quantity ?? 1;
+            const p = item.price ?? null;
+            return p != null ? sum + qty * p : sum;
+          }, 0);
+          return (
+            <>
+              {grandTotal > 0 ? (
+                <View style={styles.totalRow}>
+                  <ThemedText style={[styles.totalLabel, { color: palette.textMuted }]}>Total estimado</ThemedText>
+                  <ThemedText type="defaultSemiBold" style={{ color: palette.text }}>
+                    R$ {grandTotal.toFixed(2)}
+                  </ThemedText>
+                </View>
+              ) : null}
+              {completedTotal > 0 ? (
+                <View style={styles.totalRow}>
+                  <ThemedText style={[styles.totalLabel, { color: palette.textMuted }]}>Total concluído</ThemedText>
+                  <ThemedText type="defaultSemiBold" style={{ color: palette.success }}>
+                    R$ {completedTotal.toFixed(2)}
+                  </ThemedText>
+                </View>
+              ) : null}
+            </>
+          );
         })() : null}
       </View>
 

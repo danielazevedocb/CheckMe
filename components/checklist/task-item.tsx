@@ -19,7 +19,7 @@ import { blendWithSurface, getReadableTextColor } from '@/utils/color';
 
 export interface TaskItemProps {
   item: ChecklistItem | Task;
-  onToggle: (itemId: number) => void;
+  onToggle: (itemId: number, currentCompleted: boolean) => void;
   onEdit: (itemId: number) => void;
   onDelete: (itemId: number) => void;
   onSwipeDelete?: (itemId: number) => void;
@@ -116,8 +116,8 @@ function TaskItemComponent({
 
   const handleTogglePress = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    onToggle(item.id);
-  }, [item.id, onToggle]);
+    onToggle(item.id, completed);
+  }, [item.id, onToggle, completed]);
 
   const handleSwipeDeletePress = useCallback(() => {
     swipeableRef.current?.close();

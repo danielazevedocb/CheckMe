@@ -74,12 +74,17 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   const flatListRef = useRef<ComponentRef<typeof FlatList<ChecklistItem>> | null>(null);
   const itemsOrderRef = useRef(itemsOrder);
   const swipeableRefs = useRef<Record<number, SwipeableMethods | null>>({});
+  const taskModalRef = useRef<TaskModalState | null>(null);
 
   const accentColor = checklist?.color ?? palette.primary;
 
   useEffect(() => {
     itemsOrderRef.current = itemsOrder;
   }, [itemsOrder]);
+
+  useEffect(() => {
+    taskModalRef.current = taskModal;
+  }, [taskModal]);
 
   useEffect(() => {
     navigation.setOptions({
@@ -106,6 +111,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      if (taskModalRef.current !== null) return;
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
@@ -512,7 +518,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
         onRequestClose={() => setTaskModal(null)}>
         <KeyboardAvoidingView
           style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          behavior="padding">
           <Pressable style={styles.modalBackdrop} onPress={() => setTaskModal(null)} />
           <View
             style={[styles.modalSheet, { backgroundColor: palette.surface }]}

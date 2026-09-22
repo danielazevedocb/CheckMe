@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { Colors, Shapes } from '@/constants/theme';
 import { useThemeMode } from '@/contexts/theme-context';
 import type { TaskPriority } from '@/types/checklist';
 
@@ -61,10 +61,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chip: {
+    minHeight: 48,
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingVertical: 12,
+    borderRadius: Shapes.small,
     borderWidth: StyleSheet.hairlineWidth,
+    justifyContent: 'center',
   },
   label: {
     fontSize: 14,

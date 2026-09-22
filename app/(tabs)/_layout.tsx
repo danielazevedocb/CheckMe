@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs, useRouter } from 'expo-router';
-import { Pressable } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
 import { Colors } from '@/constants/theme';
 import { useThemeMode } from '@/contexts/theme-context';
@@ -18,8 +18,13 @@ export default function TabLayout() {
         headerTintColor: palette.text,
         tabBarActiveTintColor: palette.tabIconSelected,
         tabBarInactiveTintColor: palette.tabIconDefault,
-        tabBarStyle: { backgroundColor: palette.surface },
-        tabBarLabelStyle: { fontSize: 13, fontWeight: '600' },
+        tabBarStyle: {
+          backgroundColor: palette.surfaceContainer,
+          borderTopWidth: 0,
+          elevation: 0,
+        },
+        tabBarItemStyle: styles.tabItem,
+        tabBarLabelStyle: styles.tabLabel,
         headerShadowVisible: false,
         sceneStyle: { backgroundColor: palette.background },
       }}>
@@ -32,7 +37,8 @@ export default function TabLayout() {
             <Pressable
               onPress={() => router.push('/config')}
               accessibilityRole="button"
-              style={{ paddingHorizontal: 16 }}>
+              accessibilityLabel="Abrir configurações"
+              style={styles.headerAction}>
               <Ionicons name="settings-outline" size={22} color={palette.text} />
             </Pressable>
           ),
@@ -48,3 +54,21 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabItem: {
+    minHeight: 56,
+    paddingVertical: 4,
+  },
+  tabLabel: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
+  },
+  headerAction: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

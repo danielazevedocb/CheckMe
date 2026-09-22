@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
-import { Colors } from '@/constants/theme';
-import { useDatabase } from '@/contexts/database-context';
+import { Colors, Layout, Shapes } from '@/constants/theme';
 import { useThemeMode } from '@/contexts/theme-context';
 import { resetDatabase } from '@/lib/database';
+import { useResponsiveLayout } from '@/hooks/use-responsive-layout';
 
 const OPTIONS: { mode: 'light' | 'dark' | 'system'; title: string; description: string }[] = [
   { mode: 'light', title: 'Claro', description: 'Mantém sempre no modo claro.' },
@@ -16,8 +16,8 @@ const OPTIONS: { mode: 'light' | 'dark' | 'system'; title: string; description: 
 
 export default function ConfigScreen(): JSX.Element {
   const { mode, setMode, resolved } = useThemeMode();
-  const db = useDatabase();
   const palette = Colors[resolved];
+  const { gutter } = useResponsiveLayout();
 
   const handleResetDatabase = () => {
     Alert.alert(
@@ -43,8 +43,12 @@ export default function ConfigScreen(): JSX.Element {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: palette.background }]}
+    <ScrollView
+      style={{ backgroundColor: palette.background }}
+      contentContainerStyle={[styles.container, { paddingHorizontal: gutter }]}
+      contentInsetAdjustmentBehavior="automatic"
       accessibilityLabel="Configurações de aparência">
+      <View style={styles.content}>
       <ThemedText type="title">Tema</ThemedText>
       <ThemedText style={{ color: palette.textMuted }}>
         Escolha como o CheckMe deve se adaptar às preferências de cor.
@@ -67,7 +71,7 @@ export default function ConfigScreen(): JSX.Element {
               accessibilityRole="radio"
               accessibilityState={{ selected }}
               accessibilityLabel={option.title}>
-              <View>
+              <View style={styles.itemText}>
                 <ThemedText type="defaultSemiBold">{option.title}</ThemedText>
                 <ThemedText style={{ color: palette.textMuted }}>{option.description}</ThemedText>
               </View>
@@ -84,14 +88,22 @@ export default function ConfigScreen(): JSX.Element {
         </ThemedText>
         <Button label="Resetar Banco de Dados" variant="danger" onPress={handleResetDatabase} />
       </View>
-    </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flexGrow: 1,
+    width: '100%',
+    maxWidth: Layout.maxFormWidth,
+    alignSelf: 'center',
+    paddingTop: 24,
+    paddingBottom: 32,
+  },
+  content: {
     flex: 1,
-    padding: 24,
     gap: 16,
   },
   list: {
@@ -103,8 +115,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 16,
+    minHeight: 72,
+    borderRadius: Shapes.medium,
     borderWidth: StyleSheet.hairlineWidth,
+  },
+  itemText: {
+    flex: 1,
+    paddingRight: 12,
   },
   dangerZone: {
     marginTop: 'auto',

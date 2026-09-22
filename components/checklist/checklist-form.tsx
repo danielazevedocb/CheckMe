@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
 import { CHECKLIST_ICON_OPTIONS } from '@/constants/checklist-icons';
 import { CHECKLIST_COLORS } from '@/constants/checklist-colors';
-import { Colors } from '@/constants/theme';
+import { Colors, Shapes } from '@/constants/theme';
 import { useThemeMode } from '@/contexts/theme-context';
 
 export interface ChecklistFormValues {
@@ -34,13 +34,6 @@ export function ChecklistForm({
   const [color, setColor] = useState(initialValues.color);
   const [icon, setIcon] = useState<string | null>(initialValues.icon);
   const [titleError, setTitleError] = useState<string | undefined>();
-
-  useEffect(() => {
-    setTitle(initialValues.title);
-    setColor(initialValues.color);
-    setIcon(initialValues.icon);
-    setTitleError(undefined);
-  }, [initialValues.color, initialValues.icon, initialValues.title]);
 
   const handleSubmit = useCallback(() => {
     const trimmedTitle = title.trim();
@@ -163,9 +156,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   colorSwatch: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     borderColor: 'rgba(15,23,42,0.2)',
   },
   iconGrid: {
@@ -176,7 +169,7 @@ const styles = StyleSheet.create({
   iconOption: {
     minWidth: 48,
     height: 48,
-    borderRadius: 12,
+    borderRadius: Shapes.medium,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',

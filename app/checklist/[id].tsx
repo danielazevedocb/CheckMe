@@ -18,6 +18,7 @@ import {
   View,
 } from 'react-native';
 import type { SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ProgressBar } from '@/components/checklist/progress-bar';
 import { TaskForm, type TaskFormValues } from '@/components/checklist/task-form';
@@ -25,10 +26,11 @@ import { TaskItem } from '@/components/checklist/task-item';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Colors } from '@/constants/theme';
+import { Colors, Layout, Shapes } from '@/constants/theme';
 import { useDatabase } from '@/contexts/database-context';
 import { useThemeMode } from '@/contexts/theme-context';
 import { useChecklist } from '@/hooks/use-checklist';
+import { useResponsiveLayout } from '@/hooks/use-responsive-layout';
 import { deleteChecklist } from '@/repositories/checklist-repository';
 import { createItem, deleteItem, setItemDone, updateItem } from '@/repositories/item-repository';
 import type { ChecklistItem, TaskPriority } from '@/types/checklist';
@@ -59,6 +61,8 @@ export default function ChecklistDetailsScreen(): JSX.Element {
   const db = useDatabase();
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
+  const insets = useSafeAreaInsets();
+  const { gutter, contentWidth, isNarrow } = useResponsiveLayout();
 
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('ALL');
   const priorityOption = priorityFilter === 'ALL' ? undefined : priorityFilter;
@@ -67,7 +71,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
     priority: priorityOption,
   });
 
-  const [itemsOrder, setItemsOrder] = useState<ChecklistItem[]>([]);
+  const itemsOrder = useMemo(() => checklist?.items ?? [], [checklist?.items]);
   const [taskModal, setTaskModal] = useState<TaskModalState | null>(null);
   const [savingTask, setSavingTask] = useState(false);
 
@@ -100,14 +104,6 @@ export default function ChecklistDetailsScreen(): JSX.Element {
       ),
     });
   }, [checklist?.title, checklistId, navigation, router]);
-
-  useEffect(() => {
-    if (checklist) {
-      setItemsOrder(checklist.items);
-    } else {
-      setItemsOrder([]);
-    }
-  }, [checklist]);
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
@@ -448,7 +444,7 @@ export default function ChecklistDetailsScreen(): JSX.Element {
         icon={<Ionicons name="add" size={18} color={palette.primaryForeground} />}
         onPress={() => setTaskModal({ mode: 'create' })}
       />
-      <View style={styles.footerActions}>
+      <View style={[styles.footerActions, isNarrow && styles.footerActionsNarrow]}>
         <Button
           label="Editar"
           variant="secondary"
@@ -498,7 +494,14 @@ export default function ChecklistDetailsScreen(): JSX.Element {
         <FlatList
           ref={flatListRef}
           style={styles.flex}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            {
+              maxWidth: contentWidth,
+              paddingHorizontal: gutter,
+              paddingBottom: Math.max(96, insets.bottom + 72),
+            },
+          ]}
           keyboardShouldPersistTaps="handled"
           ListHeaderComponent={renderHeader}
           ListFooterComponent={renderFooter}
@@ -521,7 +524,13 @@ export default function ChecklistDetailsScreen(): JSX.Element {
           behavior="padding">
           <Pressable style={styles.modalBackdrop} onPress={() => setTaskModal(null)} />
           <View
-            style={[styles.modalSheet, { backgroundColor: palette.surface }]}
+            style={[
+              styles.modalSheet,
+              {
+                backgroundColor: palette.surfaceContainer,
+                paddingBottom: Math.max(24, insets.bottom + 16),
+              },
+            ]}
             accessibilityLabel={taskModal?.mode === 'edit' ? 'Editar tarefa' : 'Nova tarefa'}>
             <View style={styles.sheetHandle} />
             <View style={[styles.sheetHeader, { borderBottomColor: palette.border }]}>
@@ -565,8 +574,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 96,
+    width: '100%',
+    alignSelf: 'center',
     paddingTop: 16,
     gap: 16,
     flexGrow: 1,
@@ -591,7 +600,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   progressCard: {
-    borderRadius: 16,
+    borderRadius: Shapes.medium,
     borderWidth: StyleSheet.hairlineWidth,
     padding: 16,
     gap: 12,
@@ -627,6 +636,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
+  footerActionsNarrow: {
+    flexDirection: 'column',
+  },
   footerActionBtn: {
     flex: 1,
   },
@@ -638,13 +650,19 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     backgroundColor: 'rgba(2, 6, 23, 0.6)',
   },
   modalSheet: {
+    width: '100%',
+    maxWidth: Layout.maxFormWidth,
+    alignSelf: 'center',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
     maxHeight: '92%',
   },
   sheetHandle: {

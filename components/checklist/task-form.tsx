@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { PrioritySelector } from '@/components/checklist/priority-selector';
@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
 import { DEFAULT_TASK_PRIORITY, type TaskPriority } from '@/types/checklist';
+import { useResponsiveLayout } from '@/hooks/use-responsive-layout';
 
 export interface TaskFormValues {
   title: string;
@@ -32,6 +33,7 @@ export function TaskForm({
   loading = false,
   shoppingMode = false,
 }: TaskFormProps): JSX.Element {
+  const { isNarrow } = useResponsiveLayout();
   const [title, setTitle] = useState(initialValues?.title ?? '');
   const [description, setDescription] = useState(initialValues?.description ?? '');
   const [priority, setPriority] = useState<TaskPriority>(
@@ -42,15 +44,6 @@ export function TaskForm({
     initialValues?.price != null ? String(initialValues.price) : '',
   );
   const [titleError, setTitleError] = useState<string | undefined>();
-
-  useEffect(() => {
-    setTitle(initialValues?.title ?? '');
-    setDescription(initialValues?.description ?? '');
-    setPriority(initialValues?.priority ?? DEFAULT_TASK_PRIORITY);
-    setQuantityText(String(initialValues?.quantity ?? 1));
-    setPriceText(initialValues?.price != null ? String(initialValues.price) : '');
-    setTitleError(undefined);
-  }, [initialValues?.title, initialValues?.description, initialValues?.priority, initialValues?.quantity, initialValues?.price]);
 
   const handleSubmit = useCallback(() => {
     const trimmedTitle = title.trim();
@@ -91,8 +84,8 @@ export function TaskForm({
       />
       {shoppingMode ? (
         <>
-          <View style={styles.shoppingRow}>
-            <View style={styles.shoppingQtyField}>
+          <View style={[styles.shoppingRow, isNarrow && styles.stackedRow]}>
+            <View style={[styles.shoppingQtyField, isNarrow && styles.stackedField]}>
               <TextField
                 label="Quantidade"
                 value={quantityText}
@@ -139,9 +132,20 @@ export function TaskForm({
           </View>
         </>
       )}
-      <View style={styles.actions}>
-        <Button label="Cancelar" variant="ghost" onPress={onCancel} disabled={loading} />
-        <Button label={submitLabel} onPress={handleSubmit} loading={loading} />
+      <View style={[styles.actions, isNarrow && styles.stackedActions]}>
+        <Button
+          label="Cancelar"
+          variant="ghost"
+          onPress={onCancel}
+          disabled={loading}
+          style={isNarrow ? styles.fullWidthAction : undefined}
+        />
+        <Button
+          label={submitLabel}
+          onPress={handleSubmit}
+          loading={loading}
+          style={isNarrow ? styles.fullWidthAction : undefined}
+        />
       </View>
     </View>
   );
@@ -169,9 +173,21 @@ const styles = StyleSheet.create({
   shoppingPriceField: {
     flex: 1,
   },
+  stackedRow: {
+    flexDirection: 'column',
+  },
+  stackedField: {
+    width: '100%',
+  },
   actions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: 12,
+  },
+  stackedActions: {
+    flexDirection: 'column-reverse',
+  },
+  fullWidthAction: {
+    alignSelf: 'stretch',
   },
 });

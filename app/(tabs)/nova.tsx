@@ -4,9 +4,10 @@ import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleShee
 
 import { ChecklistForm, type ChecklistFormValues } from '@/components/checklist/checklist-form';
 import { DEFAULT_CHECKLIST_COLOR } from '@/constants/checklist-colors';
-import { Colors } from '@/constants/theme';
+import { Colors, Layout, Shapes } from '@/constants/theme';
 import { useDatabase } from '@/contexts/database-context';
 import { useThemeMode } from '@/contexts/theme-context';
+import { useResponsiveLayout } from '@/hooks/use-responsive-layout';
 import { createChecklist } from '@/repositories/checklist-repository';
 import type { ChecklistType } from '@/types/checklist';
 
@@ -20,6 +21,7 @@ export default function NovaChecklistScreen(): JSX.Element {
   const db = useDatabase();
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
+  const { gutter, isNarrow } = useResponsiveLayout();
   const [saving, setSaving] = useState(false);
 
   const { type: typeParam } = useLocalSearchParams<{ type?: string }>();
@@ -59,8 +61,11 @@ export default function NovaChecklistScreen(): JSX.Element {
     <KeyboardAvoidingView
       style={[styles.flex, { backgroundColor: palette.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <View style={styles.typeRow}>
+      <ScrollView
+        contentContainerStyle={[styles.container, { paddingHorizontal: gutter }]}
+        keyboardShouldPersistTaps="handled"
+        contentInsetAdjustmentBehavior="automatic">
+        <View style={[styles.typeRow, isNarrow && styles.typeColumn]}>
           {TYPE_OPTIONS.map((opt) => {
             const selected = checklistType === opt.type;
             return (
@@ -105,7 +110,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   container: {
-    padding: 16,
+    width: '100%',
+    maxWidth: Layout.maxFormWidth,
+    alignSelf: 'center',
+    paddingTop: 16,
     paddingBottom: 48,
     gap: 24,
   },
@@ -113,10 +121,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
+  typeColumn: {
+    flexDirection: 'column',
+  },
   typeCard: {
     flex: 1,
-    borderRadius: 16,
-    borderWidth: 1.5,
+    minHeight: 112,
+    borderRadius: Shapes.medium,
+    borderWidth: 1,
     paddingVertical: 16,
     paddingHorizontal: 12,
     alignItems: 'center',

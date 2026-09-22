@@ -12,8 +12,9 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { PriorityBadge } from '@/components/checklist/priority-badge';
-import { Colors } from '@/constants/theme';
+import { Colors, Shapes } from '@/constants/theme';
 import { useThemeMode } from '@/contexts/theme-context';
+import { useResponsiveLayout } from '@/hooks/use-responsive-layout';
 import type { ChecklistItem, ChecklistMode, Task } from '@/types/checklist';
 import { blendWithSurface, getReadableTextColor } from '@/utils/color';
 
@@ -99,6 +100,7 @@ function TaskItemComponent({
   shoppingMode = false,
 }: TaskItemProps): JSX.Element {
   const { resolved } = useThemeMode();
+  const { isNarrow } = useResponsiveLayout();
   const palette = Colors[resolved];
   const swipeableRef = useRef<SwipeableMethods | null>(null);
   const completed = isTaskCompleted(item);
@@ -165,7 +167,7 @@ function TaskItemComponent({
       <Pressable style={styles.mainRow} onPress={handleTogglePress}>
         <Ionicons name={iconName} size={26} color={iconColor} />
         <View style={styles.textGroup}>
-          <View style={styles.titleRow}>
+          <View style={[styles.titleRow, isNarrow && styles.titleRowNarrow]}>
             <AnimatedTaskTitle
               title={title}
               completed={completed}
@@ -235,7 +237,7 @@ export const TaskItem = memo(TaskItemComponent);
 const styles = StyleSheet.create({
   swipeContainer: {},
   container: {
-    borderRadius: 16,
+    borderRadius: Shapes.medium,
     borderWidth: StyleSheet.hairlineWidth,
     marginBottom: 12,
     overflow: 'hidden',
@@ -243,7 +245,7 @@ const styles = StyleSheet.create({
   mainRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 16,
+    gap: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
@@ -256,6 +258,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 8,
+  },
+  titleRowNarrow: {
+    alignItems: 'stretch',
+    flexDirection: 'column',
   },
   titleContainer: {
     flex: 1,
@@ -299,8 +305,10 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   actionButton: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    minHeight: 48,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
   },
   actionLabel: {
     fontSize: 14,
@@ -310,7 +318,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     width: 96,
-    borderRadius: 16,
+    borderRadius: Shapes.medium,
     marginLeft: 8,
   },
   deleteActionLabel: {

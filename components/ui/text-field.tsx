@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 import { StyleSheet, TextInput, TextInputProps, View } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { Colors, Shapes } from '@/constants/theme';
 import { useThemeMode } from '@/contexts/theme-context';
 import { ThemedText } from '@/components/themed-text';
 
@@ -35,7 +35,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
           isMultiline ? styles.inputMultiline : null,
           {
             backgroundColor: palette.surface,
-            borderColor: hasError ? palette.destructive : palette.border,
+            borderColor: hasError ? palette.destructive : palette.outline,
             color: palette.text,
           },
           style,
@@ -58,19 +58,20 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    gap: 4,
+    gap: 6,
   },
   label: {
-    textTransform: 'uppercase',
     fontSize: 12,
-    letterSpacing: 0.8,
+    lineHeight: 16,
+    letterSpacing: 0.4,
   },
   input: {
-    height: 48,
-    borderRadius: 12,
+    minHeight: 56,
+    borderRadius: Shapes.small,
     paddingHorizontal: 16,
     fontSize: 16,
-    borderWidth: StyleSheet.hairlineWidth,
+    lineHeight: 24,
+    borderWidth: 1,
   },
   inputMultiline: {
     height: undefined,
@@ -80,6 +81,8 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   message: {
-    fontSize: 13,
+    fontSize: 12,
+    lineHeight: 16,
+    paddingHorizontal: 16,
   },
 });

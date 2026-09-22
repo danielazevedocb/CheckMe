@@ -1,19 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet } from 'react-native';
+import { Platform, Pressable, StyleProp, StyleSheet, ViewStyle } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { Colors, Shapes } from '@/constants/theme';
 import { useThemeMode } from '@/contexts/theme-context';
 
 interface FloatingActionButtonProps {
   onPress: () => void;
   iconName?: keyof typeof Ionicons.glyphMap;
   accessibilityLabel?: string;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function FloatingActionButton({
   onPress,
   iconName = 'add',
   accessibilityLabel = 'Adicionar',
+  style,
 }: FloatingActionButtonProps): JSX.Element {
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
@@ -26,9 +28,10 @@ export function FloatingActionButton({
         styles.button,
         {
           backgroundColor: palette.primary,
-          shadowColor: palette.overlay,
-          opacity: pressed ? 0.85 : 1,
+          opacity: pressed ? 0.92 : 1,
+          transform: [{ scale: pressed ? 0.96 : 1 }],
         },
+        style,
       ]}
       onPress={onPress}>
       <Ionicons name={iconName} size={28} color={palette.primaryForeground} />
@@ -40,15 +43,23 @@ const styles = StyleSheet.create({
   button: {
     position: 'absolute',
     right: 24,
-    bottom: 32,
+    bottom: 16,
     height: 56,
     width: 56,
-    borderRadius: 28,
+    borderRadius: Shapes.large,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 3px 6px rgba(0, 0, 0, 0.2)',
+      },
+      default: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+        elevation: 6,
+      },
+    }),
   },
 });

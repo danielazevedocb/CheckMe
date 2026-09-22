@@ -1,6 +1,6 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, ViewStyle, StyleProp } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { Colors, Shapes } from '@/constants/theme';
 import { useThemeMode } from '@/contexts/theme-context';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -41,7 +41,12 @@ export function Button({
       disabled={isDisabled}
       style={({ pressed }) => [
         styles.button,
-        { backgroundColor, borderColor, opacity: isDisabled ? 0.6 : pressed ? 0.85 : 1 },
+        {
+          backgroundColor,
+          borderColor,
+          opacity: isDisabled ? 0.38 : 1,
+          transform: [{ scale: pressed && !isDisabled ? 0.98 : 1 }],
+        },
         style,
       ]}>
       {loading ? (
@@ -63,9 +68,9 @@ function getStylesForVariant(
   switch (variant) {
     case 'secondary':
       return {
-        backgroundColor: palette.surface,
+        backgroundColor: palette.surfaceContainer,
         textColor: palette.text,
-        borderColor: palette.border,
+        borderColor: 'transparent',
       };
     case 'ghost':
       return {
@@ -75,9 +80,9 @@ function getStylesForVariant(
       };
     case 'danger':
       return {
-        backgroundColor: palette.destructive,
-        textColor: palette.primaryForeground,
-        borderColor: palette.destructive,
+        backgroundColor: palette.errorContainer,
+        textColor: palette.onErrorContainer,
+        borderColor: 'transparent',
       };
     case 'primary':
     default:
@@ -92,8 +97,8 @@ function getStylesForVariant(
 const styles = StyleSheet.create({
   button: {
     minHeight: 48,
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    borderRadius: Shapes.full,
+    paddingHorizontal: 24,
     gap: 8,
     flexDirection: 'row',
     alignItems: 'center',
@@ -101,7 +106,9 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '700',
+    letterSpacing: 0.1,
   },
 });

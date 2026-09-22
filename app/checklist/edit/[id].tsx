@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,10 +12,10 @@ import {
 
 import { ChecklistForm, type ChecklistFormValues } from '@/components/checklist/checklist-form';
 import { EmptyState } from '@/components/ui/empty-state';
-import { DEFAULT_CHECKLIST_COLOR } from '@/constants/checklist-colors';
-import { Colors } from '@/constants/theme';
+import { Colors, Layout } from '@/constants/theme';
 import { useDatabase } from '@/contexts/database-context';
 import { useThemeMode } from '@/contexts/theme-context';
+import { useResponsiveLayout } from '@/hooks/use-responsive-layout';
 import {
   getChecklist,
   updateChecklistColor,
@@ -30,47 +30,45 @@ export default function EditChecklistScreen(): JSX.Element {
   const db = useDatabase();
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
+  const { gutter } = useResponsiveLayout();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [formValues, setFormValues] = useState<ChecklistFormValues | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      setLoading(true);
-      const record = await getChecklist(db, checklistId);
-      if (!record) {
-        setFormValues(null);
-        setError(new Error('not_found'));
-        return;
-      }
-
-      setFormValues({
-        title: record.title,
-        color: record.color,
-        icon: record.icon ?? null,
-      });
-      setError(null);
-    } catch (err) {
-      setError(err as Error);
-    } finally {
-      setLoading(false);
-    }
-  }, [checklistId, db]);
-
   useEffect(() => {
-    void load();
-  }, [load]);
+    let isActive = true;
 
-  const fallbackValues = useMemo(
-    (): ChecklistFormValues => ({
-      title: '',
-      color: DEFAULT_CHECKLIST_COLOR,
-      icon: null,
-    }),
-    [],
-  );
+    const load = async () => {
+      try {
+        const record = await getChecklist(db, checklistId);
+        if (!isActive) return;
+
+        if (!record) {
+          setFormValues(null);
+          setError(new Error('not_found'));
+          return;
+        }
+
+        setFormValues({
+          title: record.title,
+          color: record.color,
+          icon: record.icon ?? null,
+        });
+        setError(null);
+      } catch (err) {
+        if (isActive) setError(err as Error);
+      } finally {
+        if (isActive) setLoading(false);
+      }
+    };
+
+    void load();
+    return () => {
+      isActive = false;
+    };
+  }, [checklistId, db]);
 
   const handleSubmit = async (values: ChecklistFormValues) => {
     if (saving || !formValues) {
@@ -126,7 +124,10 @@ export default function EditChecklistScreen(): JSX.Element {
     <KeyboardAvoidingView
       style={[styles.flex, { backgroundColor: palette.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={[styles.container, { paddingHorizontal: gutter }]}
+        keyboardShouldPersistTaps="handled"
+        contentInsetAdjustmentBehavior="automatic">
         <ChecklistForm
           initialValues={formValues}
           submitLabel="Salvar alterações"
@@ -143,7 +144,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   container: {
-    padding: 16,
+    width: '100%',
+    maxWidth: Layout.maxFormWidth,
+    alignSelf: 'center',
+    paddingTop: 16,
     paddingBottom: 48,
   },
   centered: {

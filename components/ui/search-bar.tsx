@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, TextInput, View } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { Colors, Shapes } from '@/constants/theme';
 import { useThemeMode } from '@/contexts/theme-context';
 
 interface SearchBarProps {
@@ -15,7 +15,7 @@ export function SearchBar({ value, placeholder = 'Buscar', onChangeText }: Searc
   const palette = Colors[resolved];
 
   return (
-    <View style={[styles.container, { backgroundColor: palette.surface, borderColor: palette.border }]}
+    <View style={[styles.container, { backgroundColor: palette.surfaceContainerHigh }]}
       accessible
       accessibilityRole="search">
       <Ionicons name="search" size={20} color={palette.textMuted} />
@@ -35,10 +35,9 @@ export function SearchBar({ value, placeholder = 'Buscar', onChangeText }: Searc
 
 const styles = StyleSheet.create({
   container: {
-    height: 44,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 12,
+    minHeight: 56,
+    borderRadius: Shapes.extraLarge,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -46,6 +45,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
+    lineHeight: 24,
     paddingVertical: 0,
   },
 });

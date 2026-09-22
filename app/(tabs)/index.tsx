@@ -20,10 +20,11 @@ import { ChecklistCardSkeleton } from '@/components/checklist/checklist-card-ske
 import { EmptyState } from '@/components/ui/empty-state';
 import { FloatingActionButton } from '@/components/ui/fab';
 import { SearchBar } from '@/components/ui/search-bar';
-import { Colors } from '@/constants/theme';
+import { Colors, Shapes } from '@/constants/theme';
 import { useThemeMode } from '@/contexts/theme-context';
 import { useChecklists } from '@/hooks/use-checklists';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import { useResponsiveLayout } from '@/hooks/use-responsive-layout';
 import type { ChecklistStatus, ChecklistSummary } from '@/types/checklist';
 
 const HOME_FILTERS: { value: ChecklistStatus; label: string }[] = [
@@ -70,6 +71,7 @@ export default function HomeScreen(): JSX.Element {
   const db = useDatabase();
   const { resolved } = useThemeMode();
   const palette = Colors[resolved];
+  const { width, gutter, contentWidth } = useResponsiveLayout();
   const [statusFilter, setStatusFilter] = useState<ChecklistStatus>('open');
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebouncedValue(searchInput, 300);
@@ -124,9 +126,10 @@ export default function HomeScreen(): JSX.Element {
 
   return (
     <View style={[styles.container, { backgroundColor: palette.background }]} accessibilityLabel="Checklists">
-      <SearchBar value={searchInput} onChangeText={setSearchInput} placeholder="Buscar listas" />
+      <View style={[styles.headerContent, { maxWidth: contentWidth, paddingHorizontal: gutter }]}>
+        <SearchBar value={searchInput} onChangeText={setSearchInput} placeholder="Buscar listas" />
 
-      <View style={styles.filterRow} accessibilityRole="tablist">
+        <View style={styles.filterRow} accessibilityRole="tablist">
         {HOME_FILTERS.map((filter) => {
           const selected = statusFilter === filter.value;
           return (
@@ -153,34 +156,44 @@ export default function HomeScreen(): JSX.Element {
             </Pressable>
           );
         })}
+        </View>
       </View>
 
       {loading && data.length === 0 ? (
-        <View style={styles.skeletonList}>
+        <View style={[styles.skeletonList, { maxWidth: contentWidth, paddingHorizontal: gutter }]}>
           <ChecklistCardSkeleton />
           <ChecklistCardSkeleton />
           <ChecklistCardSkeleton />
         </View>
       ) : data.length === 0 ? (
-        <EmptyState
-          title={emptyCopy.title}
-          description={emptyCopy.description}
-          actionLabel={emptyCopy.isError ? 'Tentar de novo' : emptyCopy.showCreate ? 'Nova checklist' : undefined}
-          onPressAction={emptyCopy.isError ? refresh : emptyCopy.showCreate ? () => setTypeModalVisible(true) : undefined}
-        />
+        <View style={[styles.emptyContent, { maxWidth: contentWidth, paddingHorizontal: gutter }]}>
+          <EmptyState
+            title={emptyCopy.title}
+            description={emptyCopy.description}
+            actionLabel={emptyCopy.isError ? 'Tentar de novo' : emptyCopy.showCreate ? 'Nova checklist' : undefined}
+            onPressAction={emptyCopy.isError ? refresh : emptyCopy.showCreate ? () => setTypeModalVisible(true) : undefined}
+          />
+        </View>
       ) : (
         <FlatList
           data={data}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            { maxWidth: contentWidth, paddingHorizontal: gutter },
+          ]}
           ItemSeparatorComponent={ListSeparator}
           refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={palette.text} />}
           ListFooterComponent={<View style={{ height: 80 }} />}
         />
       )}
 
-      <FloatingActionButton onPress={() => setTypeModalVisible(true)} accessibilityLabel="Criar nova checklist" />
+      <FloatingActionButton
+        onPress={() => setTypeModalVisible(true)}
+        accessibilityLabel="Criar nova checklist"
+        style={{ right: Math.max(gutter, (width - contentWidth) / 2 + gutter) }}
+      />
 
       <Modal
         transparent
@@ -188,7 +201,7 @@ export default function HomeScreen(): JSX.Element {
         animationType="slide"
         onRequestClose={() => setTypeModalVisible(false)}>
         <Pressable style={[styles.modalBackdrop, { backgroundColor: palette.overlay }]} onPress={() => setTypeModalVisible(false)}>
-          <Pressable style={[styles.typeSheet, { backgroundColor: palette.surface, paddingBottom: Math.max(24, insets.bottom + 16) }]}>
+          <Pressable style={[styles.typeSheet, { backgroundColor: palette.surfaceContainer, paddingBottom: Math.max(24, insets.bottom + 16) }]}>
             <ThemedText type="subtitle" style={styles.sheetTitle}>Nova checklist</ThemedText>
             <Pressable
               onPress={() => goToNewChecklist('task')}
@@ -218,7 +231,10 @@ export default function HomeScreen(): JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+  },
+  headerContent: {
+    width: '100%',
+    alignSelf: 'center',
   },
   filterRow: {
     flexDirection: 'row',
@@ -227,32 +243,47 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   filterChip: {
-    borderRadius: 999,
+    minHeight: 48,
+    borderRadius: Shapes.small,
     borderWidth: 1,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 12,
+    justifyContent: 'center',
   },
   filterLabel: {
     fontSize: 14,
     fontWeight: '600',
   },
   listContent: {
+    width: '100%',
+    alignSelf: 'center',
     paddingTop: 16,
     paddingBottom: 24,
     gap: 16,
   },
   skeletonList: {
+    width: '100%',
+    alignSelf: 'center',
     flex: 1,
     paddingTop: 16,
     gap: 8,
+  },
+  emptyContent: {
+    flex: 1,
+    width: '100%',
+    alignSelf: 'center',
+    justifyContent: 'center',
   },
   modalBackdrop: {
     flex: 1,
     justifyContent: 'flex-end',
   },
   typeSheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    width: '100%',
+    maxWidth: 640,
+    alignSelf: 'center',
+    borderTopLeftRadius: Shapes.extraLarge,
+    borderTopRightRadius: Shapes.extraLarge,
     padding: 24,
     gap: 16,
   },
@@ -264,7 +295,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 16,
     padding: 16,
-    borderRadius: 16,
+    minHeight: 72,
+    borderRadius: Shapes.medium,
     borderWidth: StyleSheet.hairlineWidth,
   },
   typeOptionIcon: {

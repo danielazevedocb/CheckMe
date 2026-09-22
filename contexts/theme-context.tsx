@@ -9,14 +9,14 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { ActivityIndicator, ColorSchemeName, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useColorScheme as useSystemColorScheme } from 'react-native';
 
 const STORAGE_KEY = '@checkme:theme-mode';
 
 type ThemePreference = 'light' | 'dark' | 'system';
 
-type ResolvedScheme = Exclude<ColorSchemeName, null | undefined>;
+type ResolvedScheme = 'light' | 'dark';
 
 interface ThemeContextValue {
   mode: ThemePreference;
@@ -29,7 +29,8 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 export function ThemeProvider({ children }: PropsWithChildren): JSX.Element {
-  const systemScheme = (useSystemColorScheme() ?? 'light') as ResolvedScheme;
+  const systemPreference = useSystemColorScheme();
+  const systemScheme: ResolvedScheme = systemPreference === 'dark' ? 'dark' : 'light';
   const [mode, setModeState] = useState<ThemePreference>('system');
   const [isReady, setReady] = useState(false);
 
@@ -93,7 +94,11 @@ export function ThemeProvider({ children }: PropsWithChildren): JSX.Element {
 
 const styles = StyleSheet.create({
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     backgroundColor: '#000',
     alignItems: 'center',
     justifyContent: 'center',

@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ProgressBar } from '@/components/checklist/progress-bar';
 import { ThemedText } from '@/components/themed-text';
-import { Colors } from '@/constants/theme';
+import { Colors, Shapes } from '@/constants/theme';
 import { useThemeMode } from '@/contexts/theme-context';
 import type { ChecklistSummary } from '@/types/checklist';
 import { blendWithSurface } from '@/utils/color';
@@ -31,7 +31,8 @@ function ChecklistCardComponent({ summary, onPress, onToggleComplete }: Checklis
         {
           backgroundColor: containerBackground,
           borderColor: accentColor,
-          opacity: pressed ? 0.9 : 1,
+          opacity: pressed ? 0.92 : 1,
+          transform: [{ scale: pressed ? 0.99 : 1 }],
         },
       ]}
       accessibilityRole="button"
@@ -56,6 +57,7 @@ function ChecklistCardComponent({ summary, onPress, onToggleComplete }: Checklis
             accessibilityState={{ checked: isCompleted }}
             accessibilityLabel={isCompleted ? 'Marcar como incompleto' : 'Marcar como concluído'}
             hitSlop={8}
+            style={styles.completeButton}
           >
             <Ionicons
               name={isCompleted ? 'checkmark-circle' : 'ellipse-outline'}
@@ -85,8 +87,8 @@ export const ChecklistCard = memo(ChecklistCardComponent);
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Shapes.medium,
+    borderWidth: 1,
     padding: 16,
     gap: 16,
   },
@@ -109,5 +111,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     flex: 1,
+  },
+  completeButton: {
+    width: 48,
+    height: 48,
+    marginHorizontal: -12,
+    marginVertical: -12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
